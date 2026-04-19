@@ -88,6 +88,7 @@ export interface StocktakeMatchResult {
   parsedCount: number;
   matches: StocktakeMatch[];
   unmatchedTorrents: TorrentFileInfo[];
+  parseError?: string;
 }
 
 export interface StocktakeAddedTorrent {

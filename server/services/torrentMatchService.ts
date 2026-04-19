@@ -184,16 +184,28 @@ export function matchTorrentsToUntied(
   return {matches, unmatchedTorrents};
 }
 
-async function parseWithBoundedConcurrency(paths: string[]): Promise<TorrentFileInfo[]> {
-  const results: TorrentFileInfo[] = [];
+async function parseWithBoundedConcurrency(
+  paths: string[],
+): Promise<{parsed: TorrentFileInfo[]; firstError: string | null}> {
+  const parsed: TorrentFileInfo[] = [];
+  let firstError: string | null = null;
   for (let i = 0; i < paths.length; i += PARSE_CONCURRENCY) {
     const batch = paths.slice(i, i + PARSE_CONCURRENCY);
-    const parsed = await Promise.all(batch.map((p) => parseTorrentFile(p)));
-    for (const result of parsed) {
-      if (result) results.push(result);
+    const results = await Promise.all(
+      batch.map(async (p) => {
+        try {
+          return await parseTorrentFile(p);
+        } catch (e) {
+          if (!firstError) firstError = `${p}: ${e instanceof Error ? e.message : String(e)}`;
+          return null;
+        }
+      }),
+    );
+    for (const result of results) {
+      if (result) parsed.push(result);
     }
   }
-  return results;
+  return {parsed, firstError};
 }
 
 export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatchResult> {
@@ -203,9 +215,17 @@ export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatc
   }
 
   const torrentPaths = await walkForTorrentFiles(torrentDir);
-  const torrentFiles = await parseWithBoundedConcurrency(torrentPaths);
+  const {parsed: torrentFiles, firstError} = await parseWithBoundedConcurrency(torrentPaths);
 
   const {matches, unmatchedTorrents} = matchTorrentsToUntied(torrentFiles, stocktakeResult.untiedFiles);
+
+  // Surface a diagnostic hint when all parsing failed
+  let parseError: string | undefined;
+  if (torrentPaths.length > 0 && torrentFiles.length === 0) {
+    parseError =
+      firstError ??
+      'All .torrent files failed to parse. Check that the flood server process can read them (file permissions).';
+  }
 
   return {
     torrentDir,
@@ -213,5 +233,6 @@ export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatc
     parsedCount: torrentFiles.length,
     matches,
     unmatchedTorrents,
+    parseError,
   };
 }

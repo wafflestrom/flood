@@ -533,18 +533,23 @@ class Store {
 After building (`pnpm run build`), deploy to the test server for user testing:
 
 ```bash
-# 1. rsync built files to a staging area (SSH user: reginald)
-rsync -avz --delete dist/ package.json pnpm-lock.yaml \
+# 1. rsync built dist/ plus package files to staging area (SSH user: reginald)
+#    Note: dist/ contents are flattened alongside package.json in the staging dir
+rsync -az --delete dist/ package.json pnpm-lock.yaml \
   reginald@reginald.local:/tmp/flood-deploy/
 
-# 2. SSH in, sudo copy to flood's home dir, fix ownership, restart service
+# 2. SSH in: copy dist contents (excluding package files) into flood's dist/,
+#    copy package files to flood root, fix ownership, restart service
 ssh reginald@reginald.local "\
-  sudo rsync -a --delete /tmp/flood-deploy/dist/ /home/flood/flood/dist/ && \
-  sudo cp /tmp/flood-deploy/package.json /tmp/flood-deploy/pnpm-lock.yaml /home/flood/flood/ && \
+  sudo rsync -a --delete --exclude=package.json --exclude=pnpm-lock.yaml \
+    /tmp/flood-deploy/ /home/flood/flood/dist/ && \
+  sudo cp /tmp/flood-deploy/package.json /tmp/flood-deploy/pnpm-lock.yaml \
+    /home/flood/flood/ && \
   sudo chown -R flood:flood /home/flood/flood/ && \
   sudo systemctl restart flood && \
   sleep 2 && \
-  sudo systemctl status flood --no-pager"
+  sudo systemctl status flood --no-pager && \
+  rm -rf /tmp/flood-deploy"
 ```
 
 **Key details:**

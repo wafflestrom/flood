@@ -183,6 +183,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
           <div className="stocktake__match-summary-box">
             Found {matchResult.torrentFileCount} .torrent file{matchResult.torrentFileCount !== 1 ? 's' : ''} (
             {matchResult.parsedCount} parsed) · {matchResult.matches.length} matched to untied files
+            {matchResult.parseError && <div className="stocktake__error-hint">⚠ {matchResult.parseError}</div>}
           </div>
         )}
       </div>
