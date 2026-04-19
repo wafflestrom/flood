@@ -54,6 +54,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [dirFilter, setDirFilter] = useState<string>('all');
   const [addingPaths, setAddingPaths] = useState<Set<string>>(new Set());
+  const [completedPaths, setCompletedPaths] = useState<Map<string, 'added' | 'checked' | 'error'>>(new Map());
   const [showFilter, setShowFilter] = useState<'all' | 'matched' | 'unmatched'>('all');
   const prevMatchResult = useRef(matchResult);
 
@@ -144,6 +145,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
           torrentPath: match.torrentFile.torrentPath,
           destination: match.untiedPath,
         });
+        setCompletedPaths((prev) => new Map(prev).set(match.untiedPath, 'added'));
         onTorrentAdded({
           name: match.torrentFile.infoName,
           size: match.torrentFile.totalSize,
@@ -154,6 +156,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to add torrent';
+        setCompletedPaths((prev) => new Map(prev).set(match.untiedPath, 'error'));
         onTorrentAdded({
           name: match.torrentFile.infoName,
           size: match.torrentFile.totalSize,
@@ -181,6 +184,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
         await axios.post(`${baseURI}api/torrents/check-hash`, {
           hashes: [match.torrentFile.infoHash],
         });
+        setCompletedPaths((prev) => new Map(prev).set(match.untiedPath, 'checked'));
         onTorrentAdded({
           name: match.torrentFile.infoName,
           size: match.torrentFile.totalSize,
@@ -191,6 +195,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to check hash';
+        setCompletedPaths((prev) => new Map(prev).set(match.untiedPath, 'error'));
         onTorrentAdded({
           name: match.torrentFile.infoName,
           size: match.torrentFile.totalSize,
@@ -350,25 +355,35 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                   {matchResult && (
                     <td>
                       {match &&
-                        (match.alreadyLoaded ? (
-                          <button
-                            type="button"
-                            className="stocktake__btn-check"
-                            disabled={isAdding}
-                            onClick={() => handleCheckHash(match)}
-                          >
-                            {isAdding ? 'Checking…' : 'Check Hash'}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="stocktake__btn-add"
-                            disabled={isAdding}
-                            onClick={() => handleAddTorrent(match)}
-                          >
-                            {isAdding ? 'Adding…' : 'Add to Client'}
-                          </button>
-                        ))}
+                        (() => {
+                          const completed = completedPaths.get(f.path);
+                          if (completed === 'added') return <span className="stocktake__badge--success">Added</span>;
+                          if (completed === 'checked')
+                            return <span className="stocktake__badge--success">Checking</span>;
+                          if (completed === 'error') return <span className="stocktake__badge--danger">Failed</span>;
+                          if (match.alreadyLoaded) {
+                            return (
+                              <button
+                                type="button"
+                                className="stocktake__btn-check"
+                                disabled={isAdding}
+                                onClick={() => handleCheckHash(match)}
+                              >
+                                {isAdding ? 'Checking…' : 'Check Hash'}
+                              </button>
+                            );
+                          }
+                          return (
+                            <button
+                              type="button"
+                              className="stocktake__btn-add"
+                              disabled={isAdding}
+                              onClick={() => handleAddTorrent(match)}
+                            >
+                              {isAdding ? 'Adding…' : 'Add to Client'}
+                            </button>
+                          );
+                        })()}
                     </td>
                   )}
                 </tr>
