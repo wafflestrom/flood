@@ -66,6 +66,7 @@ export interface StocktakeResult {
 
 export interface TorrentFileInfo {
   torrentPath: string;
+  infoHash: string;
   infoName: string;
   totalSize: number;
   fileCount: number;
@@ -80,6 +81,7 @@ export interface StocktakeMatch {
   untiedName: string;
   torrentFile: TorrentFileInfo;
   confidence: StocktakeMatchConfidence;
+  alreadyLoaded: boolean;
 }
 
 export interface StocktakeMatchResult {
@@ -97,6 +99,6 @@ export interface StocktakeAddedTorrent {
   torrentFilePath: string;
   destination: string;
   addedAt: number;
-  status: 'added' | 'error';
+  status: 'added' | 'checked' | 'error';
   error?: string;
 }

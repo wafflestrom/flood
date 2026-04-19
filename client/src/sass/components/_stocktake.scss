@@ -479,6 +479,14 @@
   }
 }
 
+.stocktake__row--matched-loaded {
+  background: rgba(colors.$blue, 0.06) !important;
+
+  &:hover {
+    background: rgba(colors.$blue, 0.1) !important;
+  }
+}
+
 .stocktake__match-icon {
   margin-right: 2px;
 }
@@ -497,6 +505,28 @@
 
   &:hover:not(:disabled) {
     background: rgba(colors.$green, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.stocktake__btn-check {
+  padding: 2px 10px;
+  border: 1px solid rgba(colors.$blue, 0.4);
+  border-radius: 3px;
+  background: rgba(colors.$blue, 0.1);
+  color: colors.$blue;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(colors.$blue, 0.2);
   }
 
   &:disabled {

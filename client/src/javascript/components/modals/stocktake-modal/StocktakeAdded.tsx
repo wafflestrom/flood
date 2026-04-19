@@ -56,10 +56,14 @@ const StocktakeAdded: FC<StocktakeAddedProps> = ({addedTorrents}: StocktakeAdded
                 <td>
                   <span
                     className={`stocktake__badge ${
-                      t.status === 'added' ? 'stocktake__badge--success' : 'stocktake__badge--danger'
+                      t.status === 'error'
+                        ? 'stocktake__badge--danger'
+                        : t.status === 'checked'
+                        ? 'stocktake__badge--info'
+                        : 'stocktake__badge--success'
                     }`}
                   >
-                    {t.status === 'added' ? 'hashing' : 'error'}
+                    {t.status === 'added' ? 'hashing' : t.status === 'checked' ? 'rechecking' : 'error'}
                   </span>
                   {t.error && (
                     <span className="stocktake__error-hint" title={t.error}>

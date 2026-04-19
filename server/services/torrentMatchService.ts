@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -86,6 +87,7 @@ export async function parseTorrentFile(filePath: string): Promise<TorrentFileInf
     if (!decoded?.info?.name) return null;
 
     const info = decoded.info;
+    const infoHash = crypto.createHash('sha1').update(bencode.encode(info)).digest('hex').toUpperCase();
     const infoName = decodeInfoName(info);
     const totalSize = getContentSize(info);
     const isSingleFile = info.length != null;
@@ -94,6 +96,7 @@ export async function parseTorrentFile(filePath: string): Promise<TorrentFileInf
 
     return {
       torrentPath: filePath,
+      infoHash,
       infoName,
       totalSize,
       fileCount,
@@ -130,6 +133,7 @@ function scoreCandidateMatch(tf: TorrentFileInfo, candidate: StocktakeDiskEntry)
 export function matchTorrentsToUntied(
   torrentFiles: TorrentFileInfo[],
   untiedFiles: StocktakeDiskEntry[],
+  loadedHashes: Set<string>,
 ): {matches: StocktakeMatch[]; unmatchedTorrents: TorrentFileInfo[]} {
   const untiedByName = new Map<string, StocktakeDiskEntry[]>();
   for (const entry of untiedFiles) {
@@ -174,6 +178,7 @@ export function matchTorrentsToUntied(
         untiedName: bestCandidate.name,
         torrentFile: tf,
         confidence,
+        alreadyLoaded: loadedHashes.has(tf.infoHash),
       });
       matchedUntiedPaths.add(bestCandidate.path);
     } else {
@@ -217,7 +222,10 @@ export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatc
   const torrentPaths = await walkForTorrentFiles(torrentDir);
   const {parsed: torrentFiles, firstError} = await parseWithBoundedConcurrency(torrentPaths);
 
-  const {matches, unmatchedTorrents} = matchTorrentsToUntied(torrentFiles, stocktakeResult.untiedFiles);
+  // Collect hashes of all torrents already loaded in the client
+  const loadedHashes = new Set<string>(stocktakeResult.allTorrents.map((t) => t.hash));
+
+  const {matches, unmatchedTorrents} = matchTorrentsToUntied(torrentFiles, stocktakeResult.untiedFiles, loadedHashes);
 
   // Surface a diagnostic hint when all parsing failed
   let parseError: string | undefined;

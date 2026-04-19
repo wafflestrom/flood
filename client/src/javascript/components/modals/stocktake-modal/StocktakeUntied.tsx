@@ -151,8 +151,48 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
     [onTorrentAdded],
   );
 
+  const handleCheckHash = useCallback(
+    async (match: StocktakeMatch) => {
+      setAddingPaths((prev) => new Set(prev).add(match.untiedPath));
+      try {
+        await axios.post(`${baseURI}api/torrents/check-hash`, {
+          hashes: [match.torrentFile.infoHash],
+        });
+        onTorrentAdded({
+          name: match.torrentFile.infoName,
+          size: match.torrentFile.totalSize,
+          torrentFilePath: match.torrentFile.torrentPath,
+          destination: match.untiedPath,
+          addedAt: Date.now(),
+          status: 'checked',
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to check hash';
+        onTorrentAdded({
+          name: match.torrentFile.infoName,
+          size: match.torrentFile.totalSize,
+          torrentFilePath: match.torrentFile.torrentPath,
+          destination: match.untiedPath,
+          addedAt: Date.now(),
+          status: 'error',
+          error: msg,
+        });
+      } finally {
+        setAddingPaths((prev) => {
+          const next = new Set(prev);
+          next.delete(match.untiedPath);
+          return next;
+        });
+      }
+    },
+    [onTorrentAdded],
+  );
+
   const totalSize = filtered.reduce((acc, f) => acc + f.size, 0);
-  const matchedCount = matchResult ? filtered.filter((f) => matchByPath.has(f.path)).length : 0;
+  const matchedEntries = matchResult ? filtered.filter((f) => matchByPath.has(f.path)) : [];
+  const matchedCount = matchedEntries.length;
+  const loadedCount = matchedEntries.filter((f) => matchByPath.get(f.path)?.alreadyLoaded).length;
+  const newCount = matchedCount - loadedCount;
 
   return (
     <div className="stocktake__tab-content">
@@ -183,6 +223,9 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
           <div className="stocktake__match-summary-box">
             Found {matchResult.torrentFileCount} .torrent file{matchResult.torrentFileCount !== 1 ? 's' : ''} (
             {matchResult.parsedCount} parsed) · {matchResult.matches.length} matched to untied files
+            {matchResult.matches.filter((m) => m.alreadyLoaded).length > 0 && (
+              <span> ({matchResult.matches.filter((m) => m.alreadyLoaded).length} already loaded in client)</span>
+            )}
             {matchResult.parseError && <div className="stocktake__error-hint">⚠ {matchResult.parseError}</div>}
           </div>
         )}
@@ -207,7 +250,10 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
       <div className="stocktake__count">
         {filtered.length} untied file{filtered.length !== 1 ? 's' : ''} ({formatSize(totalSize)})
         {matchedCount > 0 && (
-          <span className="stocktake__match-summary"> · {matchedCount} matched to .torrent files</span>
+          <span className="stocktake__match-summary">
+            {' '}
+            · {matchedCount} matched ({loadedCount} loaded, {newCount} new)
+          </span>
         )}
       </div>
       <div className="stocktake__table-wrapper">
@@ -234,14 +280,26 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
               const match = matchByPath.get(f.path);
               const isAdding = addingPaths.has(f.path);
               return (
-                <tr key={f.path} className={match ? 'stocktake__row--matched' : ''}>
+                <tr
+                  key={f.path}
+                  className={
+                    match ? (match.alreadyLoaded ? 'stocktake__row--matched-loaded' : 'stocktake__row--matched') : ''
+                  }
+                >
                   <td
                     className="stocktake__td-name"
                     title={match ? `Matched: ${match.torrentFile.torrentPath}` : f.path}
                   >
                     {match && (
-                      <span className="stocktake__match-icon" title={`${match.confidence} match`}>
-                        🔗{' '}
+                      <span
+                        className="stocktake__match-icon"
+                        title={
+                          match.alreadyLoaded
+                            ? `${match.confidence} match (already loaded)`
+                            : `${match.confidence} match`
+                        }
+                      >
+                        {match.alreadyLoaded ? '✅ ' : '🔗 '}
                       </span>
                     )}
                     {f.isDirectory ? '📁 ' : '📄 '}
@@ -252,16 +310,26 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                   <td className="stocktake__td-dir">{f.sourceDir}</td>
                   {matchResult && (
                     <td>
-                      {match && (
-                        <button
-                          type="button"
-                          className="stocktake__btn-add"
-                          disabled={isAdding}
-                          onClick={() => handleAddTorrent(match)}
-                        >
-                          {isAdding ? 'Adding…' : 'Add to Client'}
-                        </button>
-                      )}
+                      {match &&
+                        (match.alreadyLoaded ? (
+                          <button
+                            type="button"
+                            className="stocktake__btn-check"
+                            disabled={isAdding}
+                            onClick={() => handleCheckHash(match)}
+                          >
+                            {isAdding ? 'Checking…' : 'Check Hash'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="stocktake__btn-add"
+                            disabled={isAdding}
+                            onClick={() => handleAddTorrent(match)}
+                          >
+                            {isAdding ? 'Adding…' : 'Add to Client'}
+                          </button>
+                        ))}
                     </td>
                   )}
                 </tr>
