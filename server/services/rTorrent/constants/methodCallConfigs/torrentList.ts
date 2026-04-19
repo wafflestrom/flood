@@ -93,6 +93,10 @@ const torrentListMethodCallConfigs = {
     methodCall: 'd.size_bytes=',
     transformValue: numberTransformer,
   },
+  basePath: {
+    methodCall: 'd.base_path=',
+    transformValue: stringTransformer,
+  },
   directory: {
     methodCall: 'd.directory=',
     transformValue: stringTransformer,

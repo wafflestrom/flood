@@ -65,7 +65,8 @@ export type Modal =
         | 'remove-torrents'
         | 'set-taxonomy'
         | 'set-trackers'
-        | 'settings';
+        | 'settings'
+        | 'stocktake';
     }
   | {
       id: 'add-torrents';

@@ -24,6 +24,7 @@ export interface TorrentProperties {
   dateAdded: number;
   dateCreated: number;
   dateFinished: number;
+  basePath?: string;
   directory: string;
   downRate: number;
   downTotal: number;

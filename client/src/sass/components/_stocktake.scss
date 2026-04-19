@@ -1,0 +1,408 @@
+@use '../tools/colors';
+
+.stocktake__modal {
+  min-width: 900px;
+  max-width: 1100px;
+}
+
+.stocktake__dashboard {
+  padding: 10px 0;
+}
+
+.stocktake__stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stocktake__stat-card {
+  background: rgba(colors.$white, 0.03);
+  border: 1px solid rgba(colors.$white, 0.06);
+  border-radius: 4px;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.stocktake__stat-card--success {
+  border-color: rgba(colors.$green, 0.3);
+}
+
+.stocktake__stat-card--warning {
+  border-color: rgba(#f0ad4e, 0.3);
+}
+
+.stocktake__stat-card--danger {
+  border-color: rgba(colors.$red, 0.3);
+}
+
+.stocktake__stat-card--muted {
+  opacity: 0.6;
+}
+
+.stocktake__stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: colors.$white;
+  line-height: 1.2;
+}
+
+.stocktake__stat-card--success .stocktake__stat-value {
+  color: colors.$green;
+}
+
+.stocktake__stat-card--warning .stocktake__stat-value {
+  color: #f0ad4e;
+}
+
+.stocktake__stat-card--danger .stocktake__stat-value {
+  color: colors.$red;
+}
+
+.stocktake__stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: colors.$medium-grey;
+  margin-top: 4px;
+}
+
+.stocktake__size-summary {
+  margin-bottom: 16px;
+
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: colors.$white;
+    margin-bottom: 8px;
+  }
+}
+
+.stocktake__info {
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: colors.$white;
+    margin-bottom: 8px;
+  }
+}
+
+.stocktake__dir-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+
+  li {
+    font-family: monospace;
+    font-size: 12px;
+    color: colors.$medium-grey;
+    padding: 2px 0;
+  }
+}
+
+.stocktake__scan-time {
+  font-size: 11px;
+  color: rgba(colors.$medium-grey, 0.6);
+  margin-top: 8px;
+}
+
+// Tab content
+.stocktake__tab-content {
+  padding: 10px 0;
+}
+
+.stocktake__controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.stocktake__search {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid rgba(colors.$white, 0.1);
+  border-radius: 3px;
+  background: rgba(colors.$white, 0.04);
+  color: colors.$white;
+  font-size: 13px;
+
+  &::placeholder {
+    color: rgba(colors.$medium-grey, 0.5);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: colors.$blue;
+  }
+}
+
+.stocktake__select {
+  padding: 6px 12px;
+  border: 1px solid rgba(colors.$white, 0.1);
+  border-radius: 3px;
+  background: rgba(colors.$white, 0.04);
+  color: colors.$white;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: colors.$blue;
+  }
+
+  option {
+    background: #1d2938;
+    color: colors.$white;
+  }
+}
+
+.stocktake__count {
+  font-size: 12px;
+  color: colors.$medium-grey;
+  margin-bottom: 8px;
+}
+
+// Table styles
+.stocktake__table-wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid rgba(colors.$white, 0.06);
+  border-radius: 3px;
+}
+
+.stocktake__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  th {
+    background: rgba(colors.$white, 0.05);
+    color: colors.$medium-grey;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(colors.$white, 0.08);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(colors.$white, 0.03);
+    color: rgba(colors.$white, 0.8);
+  }
+
+  tbody tr:hover {
+    background: rgba(colors.$white, 0.03);
+  }
+}
+
+.stocktake__table--compact {
+  th,
+  td {
+    padding: 4px 8px;
+  }
+}
+
+.stocktake__th-sortable {
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    color: colors.$white;
+  }
+}
+
+.stocktake__th-right,
+.stocktake__table-right {
+  text-align: right;
+}
+
+.stocktake__td-name {
+  max-width: 350px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.stocktake__td-path {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 11px;
+  color: rgba(colors.$medium-grey, 0.7);
+}
+
+.stocktake__td-dir {
+  font-family: monospace;
+  font-size: 11px;
+  color: rgba(colors.$medium-grey, 0.7);
+}
+
+.stocktake__td-tracker {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: rgba(colors.$medium-grey, 0.7);
+}
+
+.stocktake__row--missing {
+  opacity: 0.5;
+}
+
+.stocktake__empty {
+  text-align: center;
+  padding: 20px;
+  color: colors.$medium-grey;
+}
+
+// Status badges
+.stocktake__badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(colors.$white, 0.08);
+  color: colors.$medium-grey;
+}
+
+.stocktake__badge--success {
+  background: rgba(colors.$green, 0.15);
+  color: colors.$green;
+}
+
+.stocktake__badge--danger {
+  background: rgba(colors.$red, 0.15);
+  color: colors.$red;
+}
+
+.stocktake__badge--warning {
+  background: rgba(#f0ad4e, 0.15);
+  color: #f0ad4e;
+}
+
+.stocktake__badge--info {
+  background: rgba(colors.$blue, 0.15);
+  color: colors.$blue;
+}
+
+.stocktake__badge--muted {
+  opacity: 0.6;
+}
+
+// Disk usage cards
+.stocktake__disk-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stocktake__disk-card {
+  background: rgba(colors.$white, 0.03);
+  border: 1px solid rgba(colors.$white, 0.06);
+  border-radius: 4px;
+  padding: 14px 18px;
+}
+
+.stocktake__disk-dir {
+  font-family: monospace;
+  font-size: 13px;
+  color: colors.$white;
+  margin: 0 0 10px;
+}
+
+.stocktake__disk-bar {
+  height: 8px;
+  background: rgba(colors.$white, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.stocktake__disk-bar-tied {
+  background: colors.$green;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.stocktake__disk-bar-untied {
+  background: #f0ad4e;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.stocktake__disk-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: colors.$medium-grey;
+}
+
+.stocktake__disk-tied {
+  color: colors.$green;
+}
+
+.stocktake__disk-untied {
+  color: #f0ad4e;
+}
+
+.stocktake__disk-total {
+  margin-top: 16px;
+  font-size: 13px;
+  color: colors.$white;
+  font-weight: 600;
+}
+
+// Loading & empty states
+.stocktake__empty-state,
+.stocktake__error {
+  padding: 40px 20px;
+  text-align: center;
+  color: colors.$medium-grey;
+  font-size: 14px;
+}
+
+.stocktake__error {
+  color: colors.$red;
+}
+
+.stocktake__loading {
+  padding: 40px 20px;
+  text-align: center;
+  color: colors.$medium-grey;
+  font-size: 14px;
+}
+
+.stocktake__spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 16px;
+  border: 3px solid rgba(colors.$white, 0.1);
+  border-top-color: colors.$blue;
+  border-radius: 50%;
+  animation: stocktake-spin 0.8s linear infinite;
+}
+
+@keyframes stocktake-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

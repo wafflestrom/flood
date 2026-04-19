@@ -120,6 +120,11 @@ export const configSchema = strictObject({
   // Allowed paths for file operations. "undefined" means everything. [default: undefined]
   allowedPaths: array(string()).optional(),
 
+  // CLI argument: --stocktakedirs
+  // Comma-separated list of directories to scan for stocktake cross-referencing.
+  // When set, enables the stocktake feature that compares torrents with files on disk.
+  stocktakeDirs: array(string()).optional(),
+
   // CLI argument: --assets
   // Whether Flood should serve static assets.
   // Users may prefer to serve static assets via a "professional" web server such as nginx to

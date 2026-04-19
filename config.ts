@@ -151,6 +151,10 @@ const {argv: argvObj} = yargs(process.argv.slice(2))
     describe: 'Allowed path for file operations, can be called multiple times',
     type: 'string',
   })
+  .option('stocktakedirs', {
+    describe: 'Comma-separated directories to scan for stocktake disk cross-referencing',
+    type: 'string',
+  })
   .option('assets', {
     default: true,
     describe: 'ADVANCED: Serve static assets',
@@ -329,6 +333,13 @@ if (typeof argv.allowedpath === 'string') {
   allowedPaths = allowedPaths.concat(argv.allowedpath);
 }
 
+let stocktakeDirs: string[] = [];
+if (typeof argv.stocktakedirs === 'string') {
+  stocktakeDirs = stocktakeDirs.concat(argv.stocktakedirs.split(','));
+} else if (Array.isArray(argv.stocktakedirs)) {
+  stocktakeDirs = stocktakeDirs.concat(argv.stocktakedirs);
+}
+
 const result = configSchema.safeParse({
   baseURI: argv.baseuri,
   dbCleanInterval: argv.dbclean,
@@ -346,6 +357,7 @@ const result = configSchema.safeParse({
   sslKey: argv.sslkey || path.resolve(path.join(argv.rundir, 'key.pem')),
   sslCert: argv.sslcert || path.resolve(path.join(argv.rundir, 'fullchain.pem')),
   allowedPaths: allowedPaths.length > 0 ? allowedPaths : undefined,
+  stocktakeDirs: stocktakeDirs.length > 0 ? stocktakeDirs : undefined,
   serveAssets: argv.assets,
   disableRateLimit: argv.disableRateLimit,
 });

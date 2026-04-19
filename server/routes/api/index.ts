@@ -21,6 +21,7 @@ import {accessDeniedError, isAllowedPath, sanitizePath} from '../../util/fileUti
 import authRoutes from './auth';
 import clientRoutes from './client';
 import feedMonitorRoutes from './feed-monitor';
+import stocktakeRoutes from './stocktake';
 import torrentsRoutes from './torrents';
 
 const apiRoutes = async (fastify: FastifyInstance) => {
@@ -46,6 +47,7 @@ const apiRoutes = async (fastify: FastifyInstance) => {
 
     protectedRoutes.register(clientRoutes, {prefix: '/client'});
     protectedRoutes.register(feedMonitorRoutes, {prefix: '/feed-monitor'});
+    protectedRoutes.register(stocktakeRoutes, {prefix: '/stocktake'});
     protectedRoutes.register(torrentsRoutes, {prefix: '/torrents'});
 
     protectedRoutes.get(

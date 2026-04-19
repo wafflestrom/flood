@@ -10,6 +10,7 @@ import SearchBox from './SearchBox';
 import SettingsButton from './SettingsButton';
 import SidebarActions from './SidebarActions';
 import SpeedLimitDropdown from './SpeedLimitDropdown';
+import StocktakeButton from './StocktakeButton';
 import StatusFilters from './StatusFilters';
 import TagFilters from './TagFilters';
 import ThemeSwitchButton from './ThemeSwitchButton';
@@ -35,6 +36,7 @@ const Sidebar: FC = () => (
     <div style={{display: 'flex', flexDirection: 'column'}}>
       <SidebarActions>
         <SpeedLimitDropdown />
+        <StocktakeButton />
         <SettingsButton />
         <FeedsButton />
         <NotificationsButton />

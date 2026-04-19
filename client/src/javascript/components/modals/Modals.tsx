@@ -12,6 +12,7 @@ import RemoveTorrentsModal from './remove-torrents-modal/RemoveTorrentsModal';
 import SetTagsModal from './set-tags-modal/SetTagsModal';
 import SetTrackersModal from './set-trackers-modal/SetTrackersModal';
 import SettingsModal from './settings-modal/SettingsModal';
+import StocktakeModal from './stocktake-modal/StocktakeModal';
 import TorrentDetailsModal from './torrent-details-modal/TorrentDetailsModal';
 import UIStore from '../../stores/UIStore';
 
@@ -37,6 +38,8 @@ const createModal = (id: Modal['id']): React.ReactNode => {
       return <SetTrackersModal />;
     case 'settings':
       return <SettingsModal />;
+    case 'stocktake':
+      return <StocktakeModal />;
     case 'torrent-details':
       return <TorrentDetailsModal />;
     default:
