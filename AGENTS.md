@@ -1,5 +1,9 @@
 This file provides guidance to AI coding agents when working with code in this repository.
 
+## Git Commits
+
+**Do NOT add `Co-authored-by` trailers to commit messages.** No co-author lines of any kind.
+
 ## Project Overview
 
 Flood is a modern web UI for various torrent clients (rTorrent, qBittorrent, Transmission, Deluge) with multi-user and multi-client support. Built with TypeScript, React, MobX, and Node.js/Fastify.
