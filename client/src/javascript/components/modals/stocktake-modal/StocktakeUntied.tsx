@@ -334,7 +334,19 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                   <td className="stocktake__table-right">{formatSize(f.size)}</td>
                   <td>{formatDate(f.mtime)}</td>
                   <td className="stocktake__td-dir">{f.sourceDir}</td>
-                  {matchResult && <td className="stocktake__td-tracker">{match?.torrentFile.trackers[0] ?? ''}</td>}
+                  {matchResult && (
+                    <td className="stocktake__td-tracker">
+                      {match?.torrentFile.trackers[0]
+                        ? (() => {
+                            try {
+                              return new URL(match.torrentFile.trackers[0]).hostname;
+                            } catch {
+                              return match.torrentFile.trackers[0];
+                            }
+                          })()
+                        : ''}
+                    </td>
+                  )}
                   {matchResult && (
                     <td>
                       {match &&
