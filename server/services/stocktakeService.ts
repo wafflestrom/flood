@@ -81,28 +81,27 @@ async function getTopLevelEntries(root: string, skipPaths: Set<string>): Promise
   return entries;
 }
 
-async function getDirectorySize(dirPath: string): Promise<number> {
-  let total = 0;
+async function getDirectorySizes(dirs: string[]): Promise<Map<string, number>> {
+  if (dirs.length === 0) return new Map();
+  const result = new Map<string, number>();
   try {
-    const dirents = await fs.promises.readdir(dirPath, {withFileTypes: true});
-    const sizes = await Promise.all(
-      dirents.map(async (d) => {
-        const full = path.join(dirPath, d.name);
-        try {
-          if (d.isDirectory() || (d.isSymbolicLink() && (await fs.promises.stat(full)).isDirectory())) {
-            return getDirectorySize(full);
-          }
-          return (await fs.promises.stat(full)).size;
-        } catch {
-          return 0;
-        }
-      }),
-    );
-    for (const s of sizes) total += s;
+    const {execFile} = await import('node:child_process');
+    const {promisify} = await import('node:util');
+    const execFileAsync = promisify(execFile);
+    const isLinux = process.platform === 'linux';
+    const args = isLinux ? ['-sb', ...dirs] : ['-sk', ...dirs];
+    const {stdout} = await execFileAsync('du', args, {maxBuffer: 10 * 1024 * 1024});
+    for (const line of stdout.trim().split('\n')) {
+      const tab = line.indexOf('\t');
+      if (tab === -1) continue;
+      const size = parseInt(line.substring(0, tab), 10);
+      const dirPath = line.substring(tab + 1);
+      result.set(dirPath, isLinux ? size : size * 1024);
+    }
   } catch {
-    // skip unreadable dirs
+    // fallback: leave sizes at 0
   }
-  return total;
+  return result;
 }
 
 function getTorrentStatus(torrent: TorrentProperties): string {
@@ -294,16 +293,18 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     }
   }
 
-  // Compute sizes for remaining directories via recursive stat
-  const dirSizePromises = allDisk
-    .filter((e) => e.isDirectory && e.size === 0)
-    .map(async (entry) => {
-      entry.size = await getDirectorySize(entry.path);
-    });
-  await Promise.all(dirSizePromises);
-
   // Classify
   const untiedFiles = allDisk.filter((e) => e.matchedTorrentHashes.length === 0);
+
+  // Compute sizes for untied directories via single `du` subprocess
+  const untiedDirs = untiedFiles.filter((e) => e.isDirectory && e.size === 0);
+  if (untiedDirs.length > 0) {
+    const sizeMap = await getDirectorySizes(untiedDirs.map((e) => e.path));
+    for (const entry of untiedDirs) {
+      entry.size = sizeMap.get(entry.path) ?? 0;
+    }
+  }
+
   const orphanedTorrents = allTorrentMatches.filter((m) => m.status === 'orphaned');
 
   const seedingCount = allTorrentMatches.filter((m) => m.status === 'seeding').length;
