@@ -223,7 +223,8 @@
 
 .stocktake__th-right,
 .stocktake__table-right {
-  text-align: right;
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .stocktake__td-name {
