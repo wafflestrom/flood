@@ -36,7 +36,7 @@ function findTopLevelEntry(torrentPath: string, contentRoots: string[]): string 
     }
     const rel = path.relative(normRoot, normPath);
     const topComponent = rel.split(path.sep)[0];
-    if (topComponent === '.') {
+    if (topComponent === '.' || topComponent === '') {
       continue;
     }
     // Prefer the most specific (longest) matching root
@@ -189,8 +189,8 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     let inScannedDir = false;
     let filesOnDisk = false;
 
-    // Try basePath, directory to find top-level match
-    const candidatePaths = [t.basePath, t.directory].filter(Boolean) as string[];
+    // Try basePath, then directory/name (reliable for single-file), then directory alone
+    const candidatePaths = [t.basePath, path.join(t.directory, t.name), t.directory].filter(Boolean) as string[];
     for (const candidatePath of candidatePaths) {
       const topEntryPath = findTopLevelEntry(candidatePath, normalisedRoots);
       if (topEntryPath) {

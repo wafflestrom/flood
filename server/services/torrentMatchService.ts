@@ -10,6 +10,16 @@ import {getStocktakeResult} from './stocktakeService';
 const MAX_TORRENT_FILES = 10_000;
 const PARSE_CONCURRENCY = 50;
 
+let cachedMatchResult: StocktakeMatchResult | null = null;
+
+export function getCachedMatchResult(): StocktakeMatchResult | null {
+  return cachedMatchResult;
+}
+
+export function clearCachedMatchResult(): void {
+  cachedMatchResult = null;
+}
+
 async function walkForTorrentFiles(dir: string): Promise<string[]> {
   const results: string[] = [];
 
@@ -255,7 +265,7 @@ export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatc
       'All .torrent files failed to parse. Check that the flood server process can read them (file permissions).';
   }
 
-  return {
+  const result: StocktakeMatchResult = {
     torrentDir,
     torrentFileCount: torrentPaths.length,
     parsedCount: torrentFiles.length,
@@ -264,4 +274,7 @@ export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatc
     filteredUntiedPaths: Array.from(filteredUntiedPaths),
     parseError,
   };
+
+  cachedMatchResult = result;
+  return result;
 }

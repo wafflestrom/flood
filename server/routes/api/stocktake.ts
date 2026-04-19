@@ -5,7 +5,7 @@ import type {FastifyInstance} from 'fastify';
 
 import {getRequiredAuthContext} from '../../middleware/authenticate';
 import {getStocktakeResult, runStocktakeScan} from '../../services/stocktakeService';
-import {runTorrentMatch} from '../../services/torrentMatchService';
+import {clearCachedMatchResult, getCachedMatchResult, runTorrentMatch} from '../../services/torrentMatchService';
 import {isAllowedPath, sanitizePath} from '../../util/fileUtil';
 
 const stocktakeRoutes = async (fastify: FastifyInstance) => {
@@ -21,7 +21,10 @@ const stocktakeRoutes = async (fastify: FastifyInstance) => {
     },
     async () => {
       const result = await getStocktakeResult();
-      return result ?? {status: 'no_scan', message: 'No stocktake scan has been performed yet.'};
+      if (!result) {
+        return {status: 'no_scan', message: 'No stocktake scan has been performed yet.'};
+      }
+      return {...result, cachedMatchResult: getCachedMatchResult()};
     },
   );
 
@@ -38,6 +41,7 @@ const stocktakeRoutes = async (fastify: FastifyInstance) => {
     },
     async (request) => {
       const authedContext = getRequiredAuthContext(request);
+      clearCachedMatchResult();
       const result = await runStocktakeScan(authedContext.services);
       return result;
     },

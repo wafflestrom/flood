@@ -46,6 +46,12 @@ const StocktakeModal: FC = () => {
       const response = await axios.get(`${baseURI}api/stocktake`);
       if (response.data && response.data.summary) {
         setResult(response.data as StocktakeResult);
+        // Restore cached match result if available
+        const cached = response.data.cachedMatchResult as StocktakeMatchResult | null;
+        if (cached) {
+          setMatchResult(cached);
+          setTorrentDir(cached.torrentDir);
+        }
         return;
       }
     } catch {

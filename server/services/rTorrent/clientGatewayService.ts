@@ -713,6 +713,7 @@ class RTorrentClientGatewayService extends ClientGatewayService {
                 dateAdded: response.dateAdded,
                 dateCreated: response.dateCreated,
                 dateFinished: response.dateFinished,
+                basePath: response.basePath || undefined,
                 directory: response.directory,
                 downRate: response.downRate,
                 downTotal: response.downTotal,
