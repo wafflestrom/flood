@@ -309,6 +309,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
               <th onClick={() => handleSort('sourceDir')} className="stocktake__th-sortable">
                 Directory{sortIndicator('sourceDir')}
               </th>
+              {matchResult && <th>Tracker</th>}
               {matchResult && <th>Action</th>}
             </tr>
           </thead>
@@ -333,6 +334,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                   <td className="stocktake__table-right">{formatSize(f.size)}</td>
                   <td>{formatDate(f.mtime)}</td>
                   <td className="stocktake__td-dir">{f.sourceDir}</td>
+                  {matchResult && <td className="stocktake__td-tracker">{match?.torrentFile.trackers[0] ?? ''}</td>}
                   {matchResult && (
                     <td>
                       {match &&
@@ -362,7 +364,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={matchResult ? 5 : 4} className="stocktake__empty">
+                <td colSpan={matchResult ? 7 : 4} className="stocktake__empty">
                   No untied files found.
                 </td>
               </tr>
