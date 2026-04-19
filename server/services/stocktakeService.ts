@@ -286,7 +286,15 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
   const torrentByHash = new Map(torrents.map((t) => [t.hash, t]));
   for (const m of allTorrentMatches) {
     const t = torrentByHash.get(m.hash)!;
-    m.status = m.filesOnDisk ? getTorrentStatus(t) : t.percentComplete < 100 ? 'downloading' : 'orphaned';
+    if (m.filesOnDisk) {
+      m.status = getTorrentStatus(t);
+    } else if (t.percentComplete >= 100) {
+      m.status = 'orphaned';
+    } else if (t.status.includes('stopped') || t.status.includes('inactive')) {
+      m.status = 'stopped';
+    } else {
+      m.status = 'downloading';
+    }
   }
 
   // Compute directory sizes from matched torrent data (avoids slow recursive stat)

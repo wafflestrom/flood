@@ -243,6 +243,45 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
     [onTorrentAdded],
   );
 
+  const handleStartSeeding = useCallback(
+    async (match: StocktakeMatch) => {
+      setAddingPaths((prev) => new Set(prev).add(match.untiedPath));
+      try {
+        await axios.post(`${baseURI}api/torrents/start`, {
+          hashes: [match.torrentFile.infoHash],
+        });
+        setCompletedPaths((prev) => new Map(prev).set(match.untiedPath, 'added'));
+        onTorrentAdded({
+          name: match.torrentFile.infoName,
+          size: match.torrentFile.totalSize,
+          torrentFilePath: match.torrentFile.torrentPath,
+          destination: match.untiedPath,
+          addedAt: Date.now(),
+          status: 'added',
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to start torrent';
+        setCompletedPaths((prev) => new Map(prev).set(match.untiedPath, 'error'));
+        onTorrentAdded({
+          name: match.torrentFile.infoName,
+          size: match.torrentFile.totalSize,
+          torrentFilePath: match.torrentFile.torrentPath,
+          destination: match.untiedPath,
+          addedAt: Date.now(),
+          status: 'error',
+          error: msg,
+        });
+      } finally {
+        setAddingPaths((prev) => {
+          const next = new Set(prev);
+          next.delete(match.untiedPath);
+          return next;
+        });
+      }
+    },
+    [onTorrentAdded],
+  );
+
   const totalSize = filtered.reduce((acc, f) => acc + f.size, 0);
   const matchedEntries = matchResult ? filtered.filter((f) => matchByPath.has(f.path)) : [];
   const matchedCount = matchedEntries.length;
@@ -377,6 +416,24 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                         (() => {
                           const completed = completedPaths.get(f.path);
                           if (match.alreadyLoaded) {
+                            if (match.percentComplete >= 100) {
+                              return (
+                                <button
+                                  type="button"
+                                  className={completed === 'error' ? 'stocktake__btn-check' : 'stocktake__btn-add'}
+                                  disabled={isAdding || !!completed}
+                                  onClick={() => handleStartSeeding(match)}
+                                >
+                                  {isAdding
+                                    ? 'Starting…'
+                                    : completed === 'added'
+                                    ? 'Started'
+                                    : completed === 'error'
+                                    ? 'Failed'
+                                    : 'Start Seeding'}
+                                </button>
+                              );
+                            }
                             return (
                               <button
                                 type="button"

@@ -82,6 +82,7 @@ export interface StocktakeMatch {
   torrentFile: TorrentFileInfo;
   confidence: StocktakeMatchConfidence;
   alreadyLoaded: boolean;
+  percentComplete: number;
 }
 
 export interface StocktakeMatchResult {
