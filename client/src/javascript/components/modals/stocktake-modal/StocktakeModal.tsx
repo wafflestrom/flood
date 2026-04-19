@@ -32,11 +32,14 @@ const StocktakeModal: FC = () => {
       const response = await axios.get(`${baseURI}api/stocktake`);
       if (response.data && response.data.summary) {
         setResult(response.data as StocktakeResult);
+        return;
       }
     } catch {
       // no cached result available
     }
-  }, []);
+    // No cached data — automatically start a scan
+    runScan();
+  }, [runScan]);
 
   const runScan = useCallback(async () => {
     setIsLoading(true);
