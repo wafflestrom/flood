@@ -27,20 +27,6 @@ const StocktakeModal: FC = () => {
   const [matchError, setMatchError] = useState<string | null>(null);
   const [addedTorrents, setAddedTorrents] = useState<StocktakeAddedTorrent[]>([]);
 
-  const fetchCached = useCallback(async () => {
-    try {
-      const response = await axios.get(`${baseURI}api/stocktake`);
-      if (response.data && response.data.summary) {
-        setResult(response.data as StocktakeResult);
-        return;
-      }
-    } catch {
-      // no cached result available
-    }
-    // No cached data — automatically start a scan
-    runScan();
-  }, [runScan]);
-
   const runScan = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -54,6 +40,20 @@ const StocktakeModal: FC = () => {
       setIsLoading(false);
     }
   }, []);
+
+  const fetchCached = useCallback(async () => {
+    try {
+      const response = await axios.get(`${baseURI}api/stocktake`);
+      if (response.data && response.data.summary) {
+        setResult(response.data as StocktakeResult);
+        return;
+      }
+    } catch {
+      // no cached result available
+    }
+    // No cached data — automatically start a scan
+    runScan();
+  }, [runScan]);
 
   const runMatch = useCallback(async () => {
     if (!torrentDir.trim()) return;
