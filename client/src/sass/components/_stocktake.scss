@@ -343,6 +343,12 @@
   transition: width 0.3s ease;
 }
 
+.stocktake__disk-bar-matched {
+  background: colors.$blue;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
 .stocktake__disk-bar-untied {
   background: #f0ad4e;
   height: 100%;
@@ -360,8 +366,25 @@
   color: colors.$green;
 }
 
+.stocktake__disk-matched {
+  color: colors.$blue;
+}
+
 .stocktake__disk-untied {
   color: #f0ad4e;
+}
+
+.stocktake__disk-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.stocktake__disk-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .stocktake__disk-total {

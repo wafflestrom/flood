@@ -214,6 +214,8 @@ const StocktakeModal: FC = () => {
       content: StocktakeDiskUsage,
       props: {
         dirBreakdown: result.dirBreakdown,
+        untiedFiles: result.untiedFiles,
+        matchResult,
       },
       label: 'Disk Usage',
     },
