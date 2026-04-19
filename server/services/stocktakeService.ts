@@ -1,5 +1,7 @@
+import {execFile} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import {promisify} from 'node:util';
 
 import type {TorrentProperties} from '@shared/types/Torrent';
 import type {
@@ -85,8 +87,6 @@ async function getDirectorySizes(dirs: string[]): Promise<Map<string, number>> {
   if (dirs.length === 0) return new Map();
   const result = new Map<string, number>();
   try {
-    const {execFile} = await import('node:child_process');
-    const {promisify} = await import('node:util');
     const execFileAsync = promisify(execFile);
     const isLinux = process.platform === 'linux';
     const args = isLinux ? ['-sb', ...dirs] : ['-sk', ...dirs];
