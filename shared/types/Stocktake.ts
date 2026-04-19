@@ -90,6 +90,7 @@ export interface StocktakeMatchResult {
   parsedCount: number;
   matches: StocktakeMatch[];
   unmatchedTorrents: TorrentFileInfo[];
+  filteredUntiedPaths: string[];
   parseError?: string;
 }
 

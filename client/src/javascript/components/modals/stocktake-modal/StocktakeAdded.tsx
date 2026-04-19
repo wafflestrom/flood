@@ -1,4 +1,4 @@
-import {FC} from 'react';
+import {FC, useMemo, useState} from 'react';
 
 import type {StocktakeAddedTorrent} from '@shared/types/Stocktake';
 
@@ -17,11 +17,57 @@ function formatTime(timestamp: number): string {
   });
 }
 
+type AddedSortField = 'name' | 'size' | 'torrentFilePath' | 'destination' | 'addedAt' | 'status';
+
 interface StocktakeAddedProps {
   addedTorrents: StocktakeAddedTorrent[];
 }
 
 const StocktakeAdded: FC<StocktakeAddedProps> = ({addedTorrents}: StocktakeAddedProps) => {
+  const [sortField, setSortField] = useState<AddedSortField>('addedAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: AddedSortField) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const sortIndicator = (field: AddedSortField) => {
+    if (sortField !== field) return '';
+    return sortDir === 'asc' ? ' ▲' : ' ▼';
+  };
+
+  const sorted = useMemo(() => {
+    return [...addedTorrents].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'size':
+          cmp = a.size - b.size;
+          break;
+        case 'torrentFilePath':
+          cmp = a.torrentFilePath.localeCompare(b.torrentFilePath);
+          break;
+        case 'destination':
+          cmp = a.destination.localeCompare(b.destination);
+          break;
+        case 'addedAt':
+          cmp = a.addedAt - b.addedAt;
+          break;
+        case 'status':
+          cmp = a.status.localeCompare(b.status);
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [addedTorrents, sortField, sortDir]);
+
   return (
     <div className="stocktake__tab-content">
       <div className="stocktake__count">
@@ -31,16 +77,28 @@ const StocktakeAdded: FC<StocktakeAddedProps> = ({addedTorrents}: StocktakeAdded
         <table className="stocktake__table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th className="stocktake__th-right">Size</th>
-              <th>Source .torrent</th>
-              <th>Destination</th>
-              <th>Time</th>
-              <th>Status</th>
+              <th onClick={() => handleSort('name')} className="stocktake__th-sortable">
+                Name{sortIndicator('name')}
+              </th>
+              <th onClick={() => handleSort('size')} className="stocktake__th-sortable stocktake__th-right">
+                Size{sortIndicator('size')}
+              </th>
+              <th onClick={() => handleSort('torrentFilePath')} className="stocktake__th-sortable">
+                Source .torrent{sortIndicator('torrentFilePath')}
+              </th>
+              <th onClick={() => handleSort('destination')} className="stocktake__th-sortable">
+                Destination{sortIndicator('destination')}
+              </th>
+              <th onClick={() => handleSort('addedAt')} className="stocktake__th-sortable">
+                Time{sortIndicator('addedAt')}
+              </th>
+              <th onClick={() => handleSort('status')} className="stocktake__th-sortable">
+                Status{sortIndicator('status')}
+              </th>
             </tr>
           </thead>
           <tbody>
-            {addedTorrents.map((t) => (
+            {sorted.map((t) => (
               <tr key={t.torrentFilePath + t.addedAt}>
                 <td className="stocktake__td-name" title={t.name}>
                   {t.name}

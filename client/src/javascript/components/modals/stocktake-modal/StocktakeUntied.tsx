@@ -69,8 +69,17 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
     return Array.from(dirs).sort();
   }, [untiedFiles]);
 
+  const filteredPaths = useMemo(() => {
+    if (!matchResult?.filteredUntiedPaths?.length) return null;
+    return new Set(matchResult.filteredUntiedPaths);
+  }, [matchResult]);
+
   const filtered = useMemo(() => {
     let items = untiedFiles;
+    // Remove entries matched to active (non-stopped) loaded torrents
+    if (filteredPaths) {
+      items = items.filter((f) => !filteredPaths.has(f.path));
+    }
     if (dirFilter !== 'all') {
       items = items.filter((f) => f.sourceDir === dirFilter);
     }
@@ -97,7 +106,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return items;
-  }, [untiedFiles, search, sortField, sortDir, dirFilter]);
+  }, [untiedFiles, search, sortField, sortDir, dirFilter, filteredPaths]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -224,7 +233,10 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
             Found {matchResult.torrentFileCount} .torrent file{matchResult.torrentFileCount !== 1 ? 's' : ''} (
             {matchResult.parsedCount} parsed) · {matchResult.matches.length} matched to untied files
             {matchResult.matches.filter((m) => m.alreadyLoaded).length > 0 && (
-              <span> ({matchResult.matches.filter((m) => m.alreadyLoaded).length} already loaded in client)</span>
+              <span> ({matchResult.matches.filter((m) => m.alreadyLoaded).length} stopped, need hash check)</span>
+            )}
+            {(matchResult.filteredUntiedPaths?.length ?? 0) > 0 && (
+              <span> · {matchResult.filteredUntiedPaths.length} removed (active in client)</span>
             )}
             {matchResult.parseError && <div className="stocktake__error-hint">⚠ {matchResult.parseError}</div>}
           </div>

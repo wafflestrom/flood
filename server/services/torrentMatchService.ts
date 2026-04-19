@@ -133,8 +133,8 @@ function scoreCandidateMatch(tf: TorrentFileInfo, candidate: StocktakeDiskEntry)
 export function matchTorrentsToUntied(
   torrentFiles: TorrentFileInfo[],
   untiedFiles: StocktakeDiskEntry[],
-  loadedHashes: Set<string>,
-): {matches: StocktakeMatch[]; unmatchedTorrents: TorrentFileInfo[]} {
+  loadedHashStatuses: Map<string, string>,
+): {matches: StocktakeMatch[]; unmatchedTorrents: TorrentFileInfo[]; filteredUntiedPaths: Set<string>} {
   const untiedByName = new Map<string, StocktakeDiskEntry[]>();
   for (const entry of untiedFiles) {
     const key = entry.name.toLowerCase();
@@ -146,6 +146,8 @@ export function matchTorrentsToUntied(
   const matches: StocktakeMatch[] = [];
   const matchedUntiedPaths = new Set<string>();
   const unmatchedTorrents: TorrentFileInfo[] = [];
+  // Untied entries matched to active torrents — should be hidden from the untied list
+  const filteredUntiedPaths = new Set<string>();
 
   for (const tf of torrentFiles) {
     const key = tf.infoName.toLowerCase();
@@ -169,6 +171,17 @@ export function matchTorrentsToUntied(
     }
 
     if (bestCandidate) {
+      const loadedStatus = loadedHashStatuses.get(tf.infoHash);
+      const isLoaded = loadedStatus != null;
+      const isStopped = loadedStatus === 'stopped' || loadedStatus === 'inactive';
+
+      if (isLoaded && !isStopped) {
+        // Active torrent matched by hash — remove from untied list entirely
+        filteredUntiedPaths.add(bestCandidate.path);
+        matchedUntiedPaths.add(bestCandidate.path);
+        continue;
+      }
+
       const sizeMatch = bestCandidate.size > 0 && tf.totalSize > 0 && bestCandidate.size === tf.totalSize;
       const shapeMatch = bestCandidate.isDirectory === !tf.isSingleFile;
       const confidence = sizeMatch && shapeMatch ? 'exact' : 'name-only';
@@ -178,7 +191,7 @@ export function matchTorrentsToUntied(
         untiedName: bestCandidate.name,
         torrentFile: tf,
         confidence,
-        alreadyLoaded: loadedHashes.has(tf.infoHash),
+        alreadyLoaded: isStopped,
       });
       matchedUntiedPaths.add(bestCandidate.path);
     } else {
@@ -186,7 +199,7 @@ export function matchTorrentsToUntied(
     }
   }
 
-  return {matches, unmatchedTorrents};
+  return {matches, unmatchedTorrents, filteredUntiedPaths};
 }
 
 async function parseWithBoundedConcurrency(
@@ -222,10 +235,17 @@ export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatc
   const torrentPaths = await walkForTorrentFiles(torrentDir);
   const {parsed: torrentFiles, firstError} = await parseWithBoundedConcurrency(torrentPaths);
 
-  // Collect hashes of all torrents already loaded in the client
-  const loadedHashes = new Set<string>(stocktakeResult.allTorrents.map((t) => t.hash));
+  // Build hash → status map for loaded torrents
+  const loadedHashStatuses = new Map<string, string>();
+  for (const t of stocktakeResult.allTorrents) {
+    loadedHashStatuses.set(t.hash, t.status);
+  }
 
-  const {matches, unmatchedTorrents} = matchTorrentsToUntied(torrentFiles, stocktakeResult.untiedFiles, loadedHashes);
+  const {matches, unmatchedTorrents, filteredUntiedPaths} = matchTorrentsToUntied(
+    torrentFiles,
+    stocktakeResult.untiedFiles,
+    loadedHashStatuses,
+  );
 
   // Surface a diagnostic hint when all parsing failed
   let parseError: string | undefined;
@@ -241,6 +261,7 @@ export async function runTorrentMatch(torrentDir: string): Promise<StocktakeMatc
     parsedCount: torrentFiles.length,
     matches,
     unmatchedTorrents,
+    filteredUntiedPaths: Array.from(filteredUntiedPaths),
     parseError,
   };
 }
