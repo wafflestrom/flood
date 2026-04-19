@@ -1,7 +1,7 @@
 @use '../tools/colors';
 
-.stocktake__modal {
-  min-width: 1400px;
+.modal__content__wrapper.stocktake__modal {
+  width: 90vw;
   max-width: 1800px;
 }
 

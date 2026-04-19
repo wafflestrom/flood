@@ -1,5 +1,5 @@
 import axios from 'axios';
-import {FC, useCallback, useMemo, useState} from 'react';
+import {FC, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import ConfigStore from '@client/stores/ConfigStore';
 import type {
@@ -55,6 +55,14 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
   const [dirFilter, setDirFilter] = useState<string>('all');
   const [addingPaths, setAddingPaths] = useState<Set<string>>(new Set());
   const [showFilter, setShowFilter] = useState<'all' | 'matched' | 'unmatched'>('all');
+  const prevMatchResult = useRef(matchResult);
+
+  useEffect(() => {
+    if (matchResult && matchResult !== prevMatchResult.current && matchResult.matches.length >= 1) {
+      setShowFilter('matched');
+    }
+    prevMatchResult.current = matchResult;
+  }, [matchResult]);
 
   const matchByPath = useMemo(() => {
     if (!matchResult) return new Map<string, StocktakeMatch>();
@@ -319,18 +327,6 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                     className="stocktake__td-name"
                     title={match ? `Matched: ${match.torrentFile.torrentPath}` : f.path}
                   >
-                    {match && (
-                      <span
-                        className="stocktake__match-icon"
-                        title={
-                          match.alreadyLoaded
-                            ? `${match.confidence} match (already loaded)`
-                            : `${match.confidence} match`
-                        }
-                      >
-                        {match.alreadyLoaded ? '✅ ' : '🔗 '}
-                      </span>
-                    )}
                     {f.isDirectory ? '📁 ' : '📄 '}
                     {f.name}
                   </td>
