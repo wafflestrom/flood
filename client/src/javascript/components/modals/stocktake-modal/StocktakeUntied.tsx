@@ -357,30 +357,38 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                       {match &&
                         (() => {
                           const completed = completedPaths.get(f.path);
-                          if (completed === 'added') return <span className="stocktake__badge--success">Added</span>;
-                          if (completed === 'checked')
-                            return <span className="stocktake__badge--success">Checking</span>;
-                          if (completed === 'error') return <span className="stocktake__badge--danger">Failed</span>;
                           if (match.alreadyLoaded) {
                             return (
                               <button
                                 type="button"
-                                className="stocktake__btn-check"
-                                disabled={isAdding}
+                                className={completed === 'error' ? 'stocktake__btn-add' : 'stocktake__btn-check'}
+                                disabled={isAdding || !!completed}
                                 onClick={() => handleCheckHash(match)}
                               >
-                                {isAdding ? 'Checking…' : 'Check Hash'}
+                                {isAdding
+                                  ? 'Checking…'
+                                  : completed === 'checked'
+                                  ? 'Checking'
+                                  : completed === 'error'
+                                  ? 'Failed'
+                                  : 'Check Hash'}
                               </button>
                             );
                           }
                           return (
                             <button
                               type="button"
-                              className="stocktake__btn-add"
-                              disabled={isAdding}
+                              className={completed === 'error' ? 'stocktake__btn-check' : 'stocktake__btn-add'}
+                              disabled={isAdding || !!completed}
                               onClick={() => handleAddTorrent(match)}
                             >
-                              {isAdding ? 'Adding…' : 'Add to Client'}
+                              {isAdding
+                                ? 'Adding…'
+                                : completed === 'added'
+                                ? 'Added'
+                                : completed === 'error'
+                                ? 'Failed'
+                                : 'Add to Client'}
                             </button>
                           );
                         })()}
