@@ -406,3 +406,106 @@
     transform: rotate(360deg);
   }
 }
+
+// Torrent matching
+.stocktake__match-controls {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: rgba(colors.$white, 0.02);
+  border: 1px solid rgba(colors.$white, 0.06);
+  border-radius: 4px;
+}
+
+.stocktake__match-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: colors.$medium-grey;
+  margin-bottom: 6px;
+}
+
+.stocktake__match-row {
+  display: flex;
+  gap: 8px;
+}
+
+.stocktake__btn-match {
+  padding: 6px 16px;
+  border: 1px solid rgba(colors.$blue, 0.4);
+  border-radius: 3px;
+  background: rgba(colors.$blue, 0.15);
+  color: colors.$blue;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(colors.$blue, 0.25);
+    border-color: rgba(colors.$blue, 0.6);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.stocktake__match-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: colors.$red;
+}
+
+.stocktake__match-summary-box {
+  margin-top: 6px;
+  font-size: 12px;
+  color: colors.$medium-grey;
+}
+
+.stocktake__match-summary {
+  color: colors.$green;
+  font-weight: 600;
+}
+
+.stocktake__row--matched {
+  background: rgba(colors.$green, 0.06) !important;
+
+  &:hover {
+    background: rgba(colors.$green, 0.1) !important;
+  }
+}
+
+.stocktake__match-icon {
+  margin-right: 2px;
+}
+
+.stocktake__btn-add {
+  padding: 2px 10px;
+  border: 1px solid rgba(colors.$green, 0.4);
+  border-radius: 3px;
+  background: rgba(colors.$green, 0.1);
+  color: colors.$green;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(colors.$green, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.stocktake__error-hint {
+  cursor: help;
+  color: #f0ad4e;
+}

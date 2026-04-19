@@ -2,10 +2,11 @@ import axios from 'axios';
 import {FC, useCallback, useEffect, useState} from 'react';
 
 import ConfigStore from '@client/stores/ConfigStore';
-import type {StocktakeResult} from '@shared/types/Stocktake';
+import type {StocktakeAddedTorrent, StocktakeMatchResult, StocktakeResult} from '@shared/types/Stocktake';
 
 import Modal from '../Modal';
 
+import StocktakeAdded from './StocktakeAdded';
 import StocktakeDashboard from './StocktakeDashboard';
 import StocktakeDiskUsage from './StocktakeDiskUsage';
 import StocktakeOrphaned from './StocktakeOrphaned';
@@ -18,6 +19,13 @@ const StocktakeModal: FC = () => {
   const [result, setResult] = useState<StocktakeResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Torrent matching state
+  const [torrentDir, setTorrentDir] = useState('');
+  const [matchResult, setMatchResult] = useState<StocktakeMatchResult | null>(null);
+  const [isMatching, setIsMatching] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [addedTorrents, setAddedTorrents] = useState<StocktakeAddedTorrent[]>([]);
 
   const fetchCached = useCallback(async () => {
     try {
@@ -42,6 +50,30 @@ const StocktakeModal: FC = () => {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  const runMatch = useCallback(async () => {
+    if (!torrentDir.trim()) return;
+    setIsMatching(true);
+    setMatchError(null);
+    try {
+      const response = await axios.post(`${baseURI}api/stocktake/match-torrents`, {torrentDir: torrentDir.trim()});
+      setMatchResult(response.data as StocktakeMatchResult);
+    } catch (e) {
+      const msg =
+        axios.isAxiosError(e) && e.response?.data?.message
+          ? (e.response.data.message as string)
+          : e instanceof Error
+          ? e.message
+          : 'Matching failed';
+      setMatchError(msg);
+    } finally {
+      setIsMatching(false);
+    }
+  }, [torrentDir]);
+
+  const handleTorrentAdded = useCallback((added: StocktakeAddedTorrent) => {
+    setAddedTorrents((prev) => [added, ...prev]);
   }, []);
 
   useEffect(() => {
@@ -139,6 +171,8 @@ const StocktakeModal: FC = () => {
 
   if (!result) return null;
 
+  const matchCountLabel = matchResult ? ` · ${matchResult.matches.length} matched` : '';
+
   const tabs = {
     dashboard: {
       content: StocktakeDashboard,
@@ -152,8 +186,15 @@ const StocktakeModal: FC = () => {
       content: StocktakeUntied,
       props: {
         untiedFiles: result.untiedFiles,
+        matchResult,
+        isMatching,
+        matchError,
+        torrentDir,
+        onTorrentDirChange: setTorrentDir,
+        onRunMatch: runMatch,
+        onTorrentAdded: handleTorrentAdded,
       },
-      label: `Untied (${result.summary.untiedCount})`,
+      label: `Untied (${result.summary.untiedCount}${matchCountLabel})`,
     },
     orphaned: {
       content: StocktakeOrphaned,
@@ -176,6 +217,17 @@ const StocktakeModal: FC = () => {
       },
       label: 'Disk Usage',
     },
+    ...(addedTorrents.length > 0
+      ? {
+          added: {
+            content: StocktakeAdded,
+            props: {
+              addedTorrents,
+            },
+            label: `Added (${addedTorrents.length})`,
+          },
+        }
+      : {}),
   };
 
   return (
