@@ -26,7 +26,7 @@ function formatDate(timestamp: number): string {
   });
 }
 
-type SortField = 'name' | 'size' | 'mtime' | 'sourceDir';
+type SortField = 'name' | 'size' | 'mtime' | 'sourceDir' | 'tracker';
 
 interface StocktakeUntiedProps {
   untiedFiles: StocktakeDiskEntry[];
@@ -84,6 +84,19 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
     return new Set(matchResult.filteredUntiedPaths);
   }, [matchResult]);
 
+  const getTracker = useCallback(
+    (f: StocktakeDiskEntry): string => {
+      const match = matchByPath.get(f.path);
+      if (!match?.torrentFile.trackers[0]) return '';
+      try {
+        return new URL(match.torrentFile.trackers[0]).hostname;
+      } catch {
+        return match.torrentFile.trackers[0];
+      }
+    },
+    [matchByPath],
+  );
+
   const filtered = useMemo(() => {
     let items = untiedFiles;
     // Remove entries matched to active (non-stopped) loaded torrents
@@ -117,11 +130,25 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
         case 'sourceDir':
           cmp = a.sourceDir.localeCompare(b.sourceDir);
           break;
+        case 'tracker':
+          cmp = getTracker(a).localeCompare(getTracker(b));
+          break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return items;
-  }, [untiedFiles, search, sortField, sortDir, dirFilter, filteredPaths, showFilter, matchResult, matchByPath]);
+  }, [
+    untiedFiles,
+    search,
+    sortField,
+    sortDir,
+    dirFilter,
+    filteredPaths,
+    showFilter,
+    matchResult,
+    matchByPath,
+    getTracker,
+  ]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -314,7 +341,11 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
               <th onClick={() => handleSort('sourceDir')} className="stocktake__th-sortable">
                 Directory{sortIndicator('sourceDir')}
               </th>
-              {matchResult && <th>Tracker</th>}
+              {matchResult && (
+                <th onClick={() => handleSort('tracker')} className="stocktake__th-sortable">
+                  Tracker{sortIndicator('tracker')}
+                </th>
+              )}
               {matchResult && <th>Action</th>}
             </tr>
           </thead>
@@ -339,19 +370,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                   <td className="stocktake__table-right">{formatSize(f.size)}</td>
                   <td>{formatDate(f.mtime)}</td>
                   <td className="stocktake__td-dir">{f.sourceDir}</td>
-                  {matchResult && (
-                    <td className="stocktake__td-tracker">
-                      {match?.torrentFile.trackers[0]
-                        ? (() => {
-                            try {
-                              return new URL(match.torrentFile.trackers[0]).hostname;
-                            } catch {
-                              return match.torrentFile.trackers[0];
-                            }
-                          })()
-                        : ''}
-                    </td>
-                  )}
+                  {matchResult && <td className="stocktake__td-tracker">{getTracker(f) || ''}</td>}
                   {matchResult && (
                     <td>
                       {match &&
