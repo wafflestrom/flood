@@ -300,7 +300,7 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
   }
 
   // Classify
-  const untiedFiles = allDisk.filter((e) => e.matchedTorrentHashes.length === 0);
+  let untiedFiles = allDisk.filter((e) => e.matchedTorrentHashes.length === 0);
 
   // Compute sizes for untied directories via single `du` subprocess
   const untiedDirs = untiedFiles.filter((e) => e.isDirectory && e.size === 0);
@@ -310,6 +310,9 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
       entry.size = sizeMap.get(entry.path) ?? 0;
     }
   }
+
+  // Drop zero-size directories (empty or unreadable)
+  untiedFiles = untiedFiles.filter((e) => !e.isDirectory || e.size > 0);
 
   const orphanedTorrents = allTorrentMatches.filter((m) => m.status === 'orphaned');
 
