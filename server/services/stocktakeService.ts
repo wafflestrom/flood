@@ -86,20 +86,26 @@ async function getTopLevelEntries(root: string, skipPaths: Set<string>): Promise
 async function getDirectorySizes(dirs: string[]): Promise<Map<string, number>> {
   if (dirs.length === 0) return new Map();
   const result = new Map<string, number>();
+  const execFileAsync = promisify(execFile);
+  const isLinux = process.platform === 'linux';
+  const args = isLinux ? ['-sb', ...dirs] : ['-sk', ...dirs];
+  let stdout = '';
   try {
-    const execFileAsync = promisify(execFile);
-    const isLinux = process.platform === 'linux';
-    const args = isLinux ? ['-sb', ...dirs] : ['-sk', ...dirs];
-    const {stdout} = await execFileAsync('du', args, {maxBuffer: 10 * 1024 * 1024});
-    for (const line of stdout.trim().split('\n')) {
-      const tab = line.indexOf('\t');
-      if (tab === -1) continue;
-      const size = parseInt(line.substring(0, tab), 10);
-      const dirPath = line.substring(tab + 1);
-      result.set(dirPath, isLinux ? size : size * 1024);
+    const res = await execFileAsync('du', args, {maxBuffer: 10 * 1024 * 1024});
+    stdout = res.stdout;
+  } catch (e: unknown) {
+    // du exits non-zero on permission errors but still produces partial output
+    if (e && typeof e === 'object' && 'stdout' in e && typeof (e as {stdout: unknown}).stdout === 'string') {
+      stdout = (e as {stdout: string}).stdout;
     }
-  } catch {
-    // fallback: leave sizes at 0
+  }
+  if (!stdout) return result;
+  for (const line of stdout.trim().split('\n')) {
+    const tab = line.indexOf('\t');
+    if (tab === -1) continue;
+    const size = parseInt(line.substring(0, tab), 10);
+    const dirPath = line.substring(tab + 1);
+    result.set(dirPath, isLinux ? size : size * 1024);
   }
   return result;
 }
