@@ -54,6 +54,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [dirFilter, setDirFilter] = useState<string>('all');
   const [addingPaths, setAddingPaths] = useState<Set<string>>(new Set());
+  const [showFilter, setShowFilter] = useState<'all' | 'matched' | 'unmatched'>('all');
 
   const matchByPath = useMemo(() => {
     if (!matchResult) return new Map<string, StocktakeMatch>();
@@ -79,6 +80,11 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
     // Remove entries matched to active (non-stopped) loaded torrents
     if (filteredPaths) {
       items = items.filter((f) => !filteredPaths.has(f.path));
+    }
+    if (showFilter === 'matched' && matchResult) {
+      items = items.filter((f) => matchByPath.has(f.path));
+    } else if (showFilter === 'unmatched' && matchResult) {
+      items = items.filter((f) => !matchByPath.has(f.path));
     }
     if (dirFilter !== 'all') {
       items = items.filter((f) => f.sourceDir === dirFilter);
@@ -106,7 +112,7 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return items;
-  }, [untiedFiles, search, sortField, sortDir, dirFilter, filteredPaths]);
+  }, [untiedFiles, search, sortField, sortDir, dirFilter, filteredPaths, showFilter, matchResult, matchByPath]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -258,6 +264,17 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
             </option>
           ))}
         </select>
+        {matchResult && (
+          <select
+            className="stocktake__select"
+            value={showFilter}
+            onChange={(e) => setShowFilter(e.target.value as 'all' | 'matched' | 'unmatched')}
+          >
+            <option value="all">All files</option>
+            <option value="matched">Matched only</option>
+            <option value="unmatched">Unmatched only</option>
+          </select>
+        )}
       </div>
       <div className="stocktake__count">
         {filtered.length} untied file{filtered.length !== 1 ? 's' : ''} ({formatSize(totalSize)})
