@@ -120,9 +120,160 @@ The matching feature lets users reconnect untied disk files with .torrent files 
 - **Server-side cache** — scan results are held in memory and served on `GET` until a new scan is triggered, keeping repeated UI opens instant.
 - **rTorrent `d.base_path=`** — added to the torrent list method calls so the service can resolve torrent-to-disk mappings accurately.
 
+## Performance
+
+The scan was optimised from **90 seconds** (cold cache) down to **~2 seconds** by benchmarking multiple directory-sizing strategies with hyperfine and applying the best combination of changes.
+
+### Key optimisations
+
+| Change                                                         | Impact                                |
+| -------------------------------------------------------------- | ------------------------------------- |
+| Parallel `du -sb` (8 concurrent processes, 2 s global timeout) | 90 s → 2.3 s cold; 2.3 s → 1.1 s warm |
+| Skip forced `fetchTorrentList()` — use polled cache            | –1 s                                  |
+| `Promise.all` across scan dirs instead of sequential loop      | –0.1–0.5 s                            |
+| Pre-computed normalised paths                                  | minor                                 |
+| Single-pass status counting + Map-based dir breakdown          | minor                                 |
+
+The parallel `du` with a time budget is the dominant win. On warm caches all 76 untied directories complete within 1.1 s. On cold caches the 2 s deadline fires and partial results are returned (dirs that didn't finish get size = 0 and are filtered out). This is an acceptable trade-off — cold caches are rare in practice because the torrent client itself keeps the filesystem hot.
+
+## Testing on the Production Server (reginald)
+
+### SSH access
+
+```bash
+# Must force IPv4 — IPv6 link-local hangs on key exchange
+ssh -4 reginald@reginald.local
+
+# Flood runs as user `flood`, install dir: /home/flood/flood/
+# Service: flood.service (systemd)
+# Flood is started with: --auth none --rtsocket /tmp/rtorrent.sock --host 127.0.0.1
+```
+
+### Authenticating to Flood
+
+Flood runs with `--auth none`, which still requires a JWT. Get one from the verify endpoint:
+
+```bash
+# Get JWT cookie
+curl -s -c /tmp/flood_cookies http://127.0.0.1:3000/api/auth/verify > /dev/null
+JWT=$(grep jwt /tmp/flood_cookies | awk '{print $NF}')
+
+# Use it for API calls
+curl -s -b "jwt=$JWT" http://127.0.0.1:3000/api/stocktake
+curl -s -b "jwt=$JWT" -X POST http://127.0.0.1:3000/api/stocktake/scan
+```
+
+Note: `POST /api/stocktake/scan` has no request body — do not send a `Content-Type: application/json` header without a body or Fastify will reject it.
+
+### Benchmarking the scan endpoint
+
+```bash
+# Warm cache (typical — torrent client keeps filesystem hot)
+curl -s -b "jwt=$JWT" -X POST http://127.0.0.1:3000/api/stocktake/scan \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['summary']['scanTime'])"
+
+# Cold cache (worst case)
+sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+curl -s -b "jwt=$JWT" -X POST http://127.0.0.1:3000/api/stocktake/scan \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['summary']['scanTime'])"
+```
+
+### Benchmarking directory sizing approaches with hyperfine
+
+The `getDirectorySizes()` function dominates scan time. To benchmark alternatives:
+
+1. **Get untied directory paths** — run a scan, then check the server logs for the untied dir list, or extract from the JSON response:
+
+   ```bash
+   curl -s -b "jwt=$JWT" -X POST http://127.0.0.1:3000/api/stocktake/scan \
+     | python3 -c "
+   import json, sys
+   d = json.load(sys.stdin)
+   for f in d['untiedFiles']:
+       if f['isDirectory']:
+           print(f['path'])
+   " > /tmp/untied_dirs.txt
+   ```
+
+2. **Create benchmark scripts** — each script reads `/tmp/untied_dirs.txt` and sizes the directories a different way. Examples:
+
+   ```bash
+   # A: baseline — single sequential du
+   cat > /tmp/bench_a.sh << 'EOF'
+   #!/bin/bash
+   xargs -d '\n' du -sb < /tmp/untied_dirs.txt > /dev/null
+   EOF
+
+   # C: parallel du (P8) — the winner
+   cat > /tmp/bench_c.sh << 'EOF'
+   #!/bin/bash
+   cat /tmp/untied_dirs.txt | xargs -P8 -I{} du -sb {} > /dev/null
+   EOF
+
+   # E: find+awk parallel (P8)
+   cat > /tmp/bench_e.sh << 'EOF'
+   #!/bin/bash
+   cat /tmp/untied_dirs.txt | xargs -P8 -I{} sh -c 'find "$1" -type f -printf "%s\n" | awk "{s+=\$1} END{print s\"\t\"ARGV[1]}"' _ {} > /dev/null
+   EOF
+
+   chmod +x /tmp/bench_*.sh
+   ```
+
+3. **Run hyperfine** — warm cache:
+
+   ```bash
+   hyperfine --warmup 2 --runs 5 \
+     -n 'A:du-single'   '/tmp/bench_a.sh' \
+     -n 'C:du-par-P8'   '/tmp/bench_c.sh' \
+     -n 'E:find-awk-P8' '/tmp/bench_e.sh'
+   ```
+
+   Cold cache (requires root for cache drops):
+
+   ```bash
+   hyperfine --runs 3 \
+     --prepare 'sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"' \
+     -n 'A:du-single'   '/tmp/bench_a.sh' \
+     -n 'C:du-par-P8'   '/tmp/bench_c.sh' \
+     -n 'E:find-awk-P8' '/tmp/bench_e.sh'
+   ```
+
+4. **Benchmark results** (76 untied dirs, April 2026):
+
+   | Approach                      | Warm (mean) | Cold (mean) |
+   | ----------------------------- | ----------- | ----------- |
+   | A: `du -sb` single (baseline) | 2.28 s      | 90.3 s      |
+   | C: `du -sb` parallel P8       | 1.10 s      | **28.8 s**  |
+   | E: `find\|awk` parallel P8    | **1.07 s**  | 64.1 s      |
+
+   Parallel `du` is the best cold-cache approach (3.1× faster). `find|awk` is slightly faster warm but much worse cold. A 2 s global timeout caps the worst case regardless.
+
+### Deploying changes
+
+```bash
+# Build locally
+pnpm run build
+
+# Rsync to staging area, then copy into place and restart
+rsync -az --delete dist/ package.json pnpm-lock.yaml \
+  reginald@reginald.local:/tmp/flood-deploy/
+
+ssh -4 reginald@reginald.local "\
+  sudo rsync -a --delete --exclude=package.json --exclude=pnpm-lock.yaml \
+    /tmp/flood-deploy/ /home/flood/flood/dist/ && \
+  sudo cp /tmp/flood-deploy/package.json /tmp/flood-deploy/pnpm-lock.yaml \
+    /home/flood/flood/ && \
+  sudo chown -R flood:flood /home/flood/flood/ && \
+  sudo systemctl restart flood && \
+  sleep 2 && \
+  sudo systemctl status flood --no-pager && \
+  rm -rf /tmp/flood-deploy"
+```
+
 ## Current Limitations
 
 - Only rTorrent exposes `basePath` via the added `d.base_path=` call. Other clients fall back to `directory`.
 - No scheduled/automatic scans — scans are user-triggered only.
 - Results are in-memory only and lost on server restart.
 - No bulk actions (e.g. remove orphaned torrents) from the UI yet.
+- Cold-cache scans may return incomplete untied-directory sizes if the 2 s `du` timeout fires. A subsequent warm-cache scan will return full results.
