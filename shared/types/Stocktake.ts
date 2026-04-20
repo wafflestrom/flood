@@ -68,6 +68,7 @@ export interface StocktakeResult {
   dirBreakdown: StocktakeDirBreakdown[];
   scanDirs: string[];
   generatedAt: number;
+  warnings: string[];
 }
 
 // Torrent file matching types

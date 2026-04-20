@@ -49,7 +49,7 @@ function findTopLevelEntry(normPath: string, normRoots: string[]): string | null
   return bestEntry;
 }
 
-async function getTopLevelEntries(root: string, skipPaths: Set<string>): Promise<DiskFile[]> {
+async function getTopLevelEntries(root: string, skipPaths: Set<string>, warnings: string[]): Promise<DiskFile[]> {
   const entries: DiskFile[] = [];
   const rootPath = normalisePath(root);
 
@@ -75,8 +75,13 @@ async function getTopLevelEntries(root: string, skipPaths: Set<string>): Promise
     for (const r of results) {
       if (r) entries.push(r);
     }
-  } catch {
-    // skip directories we can't read
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'EACCES') {
+      warnings.push(`Permission denied reading ${rootPath} — check directory execute permissions for the flood user`);
+    } else if (code !== 'ENOENT') {
+      warnings.push(`Could not read ${rootPath}: ${code ?? String(err)}`);
+    }
   }
 
   return entries;
@@ -239,11 +244,14 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
 
   const scanDirNorms = new Set(scanDirs.map(normalisePath));
 
+  // Collect warnings for permission errors and other non-fatal issues
+  const warnings: string[] = [];
+
   // O2: Scan all dirs in parallel instead of sequentially
   const allDiskFiles: Map<string, DiskFile[]> = new Map();
   await Promise.all(
     scanDirs.map(async (dir) => {
-      const entries = await getTopLevelEntries(dir, scanDirNorms);
+      const entries = await getTopLevelEntries(dir, scanDirNorms, warnings);
       allDiskFiles.set(dir, entries);
     }),
   );
@@ -550,6 +558,7 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     dirBreakdown,
     scanDirs,
     generatedAt: Date.now(),
+    warnings,
   };
 
   cachedResult = result;

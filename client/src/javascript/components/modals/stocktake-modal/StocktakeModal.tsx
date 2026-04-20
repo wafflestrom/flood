@@ -191,6 +191,7 @@ const StocktakeModal: FC = () => {
       props: {
         summary: result.summary,
         scanDirs: result.scanDirs,
+        warnings: result.warnings,
       },
       label: `Dashboard`,
     },

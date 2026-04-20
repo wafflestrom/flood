@@ -12,11 +12,22 @@ function formatSize(bytes: number): string {
 interface StocktakeDashboardProps {
   summary: StocktakeSummary;
   scanDirs: string[];
+  warnings?: string[];
 }
 
-const StocktakeDashboard: FC<StocktakeDashboardProps> = ({summary, scanDirs}: StocktakeDashboardProps) => {
+const StocktakeDashboard: FC<StocktakeDashboardProps> = ({summary, scanDirs, warnings}: StocktakeDashboardProps) => {
   return (
     <div className="stocktake__dashboard">
+      {warnings && warnings.length > 0 && (
+        <div className="stocktake__warnings">
+          <h4>⚠ Scan Warnings</h4>
+          <ul>
+            {warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="stocktake__stat-grid">
         <div className="stocktake__stat-card">
           <div className="stocktake__stat-value">{summary.totalTorrents.toLocaleString()}</div>

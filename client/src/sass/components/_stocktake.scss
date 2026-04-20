@@ -605,6 +605,29 @@
   }
 }
 
+.stocktake__warnings {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(#f0ad4e, 0.4);
+  border-radius: 4px;
+  background: rgba(#f0ad4e, 0.08);
+  font-size: 12px;
+
+  h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  li {
+    margin-bottom: 2px;
+  }
+}
+
 .stocktake__match-icon {
   margin-right: 2px;
 }
