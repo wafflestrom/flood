@@ -25,14 +25,25 @@ class TorrentStore {
   }
 
   get filteredTorrents(): Array<TorrentProperties> {
-    const {locationFilter, searchFilter, statusFilter, tagFilter, trackerFilter} = TorrentFilterStore;
+    const {
+      locationFilter,
+      locationExcludeFilter,
+      searchFilter,
+      statusFilter,
+      statusExcludeFilter,
+      tagFilter,
+      tagExcludeFilter,
+      trackerFilter,
+      trackerExcludeFilter,
+    } = TorrentFilterStore;
 
     let filteredTorrents = Object.assign([], this.sortedTorrents) as Array<TorrentProperties>;
 
-    if (locationFilter.length) {
+    if (locationFilter.length || locationExcludeFilter.length) {
       filteredTorrents = filterTorrents(filteredTorrents, {
         type: 'location',
         filter: locationFilter,
+        excludeFilter: locationExcludeFilter,
       });
     }
 
@@ -50,24 +61,27 @@ class TorrentStore {
       );
     }
 
-    if (statusFilter.length) {
+    if (statusFilter.length || statusExcludeFilter.length) {
       filteredTorrents = filterTorrents(filteredTorrents, {
         type: 'status',
         filter: statusFilter,
+        excludeFilter: statusExcludeFilter,
       });
     }
 
-    if (tagFilter.length) {
+    if (tagFilter.length || tagExcludeFilter.length) {
       filteredTorrents = filterTorrents(filteredTorrents, {
         type: 'tag',
         filter: tagFilter,
+        excludeFilter: tagExcludeFilter,
       });
     }
 
-    if (trackerFilter.length) {
+    if (trackerFilter.length || trackerExcludeFilter.length) {
       filteredTorrents = filterTorrents(filteredTorrents, {
         type: 'tracker',
         filter: trackerFilter,
+        excludeFilter: trackerExcludeFilter,
       });
     }
 

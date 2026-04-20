@@ -26,9 +26,12 @@ const buildLocationFilterTree = (location: LocationTreeNode): ReactNode => {
       count={location.containedCount}
       key={location.fullPath}
       isActive={
-        (location.fullPath === '' && !TorrentFilterStore.locationFilter.length) ||
+        (location.fullPath === '' &&
+          !TorrentFilterStore.locationFilter.length &&
+          !TorrentFilterStore.locationExcludeFilter.length) ||
         TorrentFilterStore.locationFilter.includes(location.fullPath)
       }
+      isExcluded={TorrentFilterStore.locationExcludeFilter.includes(location.fullPath)}
       name={location.directoryName}
       slug={location.fullPath}
       size={location.containedSize}

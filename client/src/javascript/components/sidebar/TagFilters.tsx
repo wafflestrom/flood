@@ -34,8 +34,10 @@ const TagFilters: FC = observer(() => {
       count={TorrentFilterStore.taxonomy.tagCounts[filter] || 0}
       key={filter}
       isActive={
-        (filter === '' && !TorrentFilterStore.tagFilter.length) || TorrentFilterStore.tagFilter.includes(filter)
+        (filter === '' && !TorrentFilterStore.tagFilter.length && !TorrentFilterStore.tagExcludeFilter.length) ||
+        TorrentFilterStore.tagFilter.includes(filter)
       }
+      isExcluded={TorrentFilterStore.tagExcludeFilter.includes(filter)}
       name={filter}
       slug={filter}
       size={TorrentFilterStore.taxonomy.tagSizes[filter]}

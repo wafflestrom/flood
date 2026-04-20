@@ -6,6 +6,7 @@ import FeedsButton from './FeedsButton';
 import LogoutButton from './LogoutButton';
 import LocationFilters from './LocationFilters';
 import NotificationsButton from './NotificationsButton';
+import ResetFiltersButton from './ResetFiltersButton';
 import SearchBox from './SearchBox';
 import SettingsButton from './SettingsButton';
 import SidebarActions from './SidebarActions';
@@ -44,6 +45,7 @@ const Sidebar: FC = () => (
       </SidebarActions>
       <TransferData />
       <SearchBox />
+      <ResetFiltersButton />
       <StatusFilters />
       <TagFilters />
       <TrackerFilters />

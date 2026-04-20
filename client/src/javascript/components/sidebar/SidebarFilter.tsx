@@ -3,7 +3,7 @@ import {createRef, FC, ReactNode, KeyboardEvent, MouseEvent, RefObject, TouchEve
 import {useLingui} from '@lingui/react';
 
 import {css} from '@client/styled-system/css';
-import {Start} from '@client/ui/icons';
+import {RemoveMini, Start} from '@client/ui/icons';
 
 import Badge from '../general/Badge';
 import Size from '../general/Size';
@@ -33,6 +33,7 @@ interface SidebarFilterProps {
   name: string;
   icon?: ReactNode;
   isActive: boolean;
+  isExcluded?: boolean;
   slug: string;
   count: number;
   size?: number;
@@ -44,6 +45,7 @@ const SidebarFilter: FC<SidebarFilterProps> = ({
   name: _name,
   icon,
   isActive,
+  isExcluded,
   slug,
   count,
   size,
@@ -58,6 +60,7 @@ const SidebarFilter: FC<SidebarFilterProps> = ({
 
   const classNames = classnames('sidebar-filter__item', {
     'is-active': isActive,
+    'is-excluded': isExcluded,
   });
   const expanderClassNames = classnames('sidebar-filter__expander', {
     'is-active': isActive,
@@ -100,6 +103,7 @@ const SidebarFilter: FC<SidebarFilterProps> = ({
           onClick={(event) => handleClick(slug, event)}
           role="menuitem"
         >
+          {isExcluded && <RemoveMini className="icon--exclude" />}
           {icon}
           <span className="name" ref={nameSpanRef} title={overflowed ? name || '' : undefined}>
             {name}

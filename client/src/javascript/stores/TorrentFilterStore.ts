@@ -12,6 +12,11 @@ class TorrentFilterStore {
   tagFilter: Array<string> = [];
   trackerFilter: Array<string> = [];
 
+  locationExcludeFilter: Array<string> = [];
+  statusExcludeFilter: Array<TorrentStatus> = [];
+  tagExcludeFilter: Array<string> = [];
+  trackerExcludeFilter: Array<string> = [];
+
   filterTrigger = false;
 
   taxonomy: Taxonomy = {
@@ -30,7 +35,11 @@ class TorrentFilterStore {
       this.searchFilter !== '' ||
       this.statusFilter.length ||
       this.tagFilter.length ||
-      this.trackerFilter.length
+      this.trackerFilter.length ||
+      this.locationExcludeFilter.length ||
+      this.statusExcludeFilter.length ||
+      this.tagExcludeFilter.length ||
+      this.trackerExcludeFilter.length
     );
   }
 
@@ -44,6 +53,10 @@ class TorrentFilterStore {
     this.statusFilter = [];
     this.tagFilter = [];
     this.trackerFilter = [];
+    this.locationExcludeFilter = [];
+    this.statusExcludeFilter = [];
+    this.tagExcludeFilter = [];
+    this.trackerExcludeFilter = [];
     this.filterTrigger = !this.filterTrigger;
   }
 
@@ -62,12 +75,12 @@ class TorrentFilterStore {
 
   setLocationFilters(filter: string | '', event: KeyboardEvent | MouseEvent | TouchEvent) {
     // keys: [] to disable shift-clicking as it doesn't make sense in a tree
-    this.computeFilters([], this.locationFilter, filter, event);
+    this.computeFilters([], this.locationFilter, this.locationExcludeFilter, filter, event);
     this.filterTrigger = !this.filterTrigger;
   }
 
   setStatusFilters(filter: TorrentStatus | '', event: KeyboardEvent | MouseEvent | TouchEvent) {
-    this.computeFilters(torrentStatusMap, this.statusFilter, filter, event);
+    this.computeFilters(torrentStatusMap, this.statusFilter, this.statusExcludeFilter, filter, event);
     this.filterTrigger = !this.filterTrigger;
   }
 
@@ -82,25 +95,40 @@ class TorrentFilterStore {
     tags.splice(tags.indexOf('untagged'), 1);
     tags.splice(1, 0, 'untagged');
 
-    this.computeFilters(tags, this.tagFilter, filter, event);
+    this.computeFilters(tags, this.tagFilter, this.tagExcludeFilter, filter, event);
     this.filterTrigger = !this.filterTrigger;
   }
 
   setTrackerFilters(filter: string, event: KeyboardEvent | MouseEvent | TouchEvent) {
     const trackers = Object.keys(this.taxonomy.trackerCounts).sort((a, b) => a.localeCompare(b));
 
-    this.computeFilters(trackers, this.trackerFilter, filter, event);
+    this.computeFilters(trackers, this.trackerFilter, this.trackerExcludeFilter, filter, event);
     this.filterTrigger = !this.filterTrigger;
   }
 
   private computeFilters<T extends TorrentStatus | string>(
     keys: readonly T[],
     currentFilters: Array<T>,
+    excludeFilters: Array<T>,
     newFilter: T,
     event: KeyboardEvent | MouseEvent | TouchEvent,
   ) {
     if (newFilter === ('' as T)) {
+      // Clicking "All" clears both inclusions and exclusions
       currentFilters.splice(0);
+      excludeFilters.splice(0);
+    } else if (event.altKey) {
+      // Alt/Opt+Click: toggle exclusion
+      if (excludeFilters.includes(newFilter)) {
+        // Already excluded — remove exclusion
+        excludeFilters.splice(excludeFilters.indexOf(newFilter), 1);
+      } else {
+        // Add to exclusion, remove from inclusion if present
+        if (currentFilters.includes(newFilter)) {
+          currentFilters.splice(currentFilters.indexOf(newFilter), 1);
+        }
+        excludeFilters.push(newFilter);
+      }
     } else if (event.shiftKey && keys.length) {
       if (currentFilters.length) {
         const lastKey = currentFilters[currentFilters.length - 1];
@@ -111,29 +139,40 @@ class TorrentFilterStore {
           return;
         }
 
-        // from the previously selected index to the currently selected index,
-        // add all filters to the selected array.
-        // if the newly selected index is larger than the previous, start from
-        // the newly selected index and work backwards. otherwise go forwards.
         const increment = currentKeyIndex > lastKeyIndex ? -1 : 1;
 
         for (; currentKeyIndex !== lastKeyIndex; currentKeyIndex += increment) {
           const foundKey = keys[currentKeyIndex] as T;
-          // if the filter isn't already selected, add the filter to the array.
           if (!currentFilters.includes(foundKey)) {
             currentFilters.push(foundKey);
+          }
+          // Remove from exclude if range-selecting into inclusion
+          if (excludeFilters.includes(foundKey)) {
+            excludeFilters.splice(excludeFilters.indexOf(foundKey), 1);
           }
         }
       } else {
         currentFilters.splice(0, currentFilters.length, newFilter);
+        // Remove from exclude if selecting
+        if (excludeFilters.includes(newFilter)) {
+          excludeFilters.splice(excludeFilters.indexOf(newFilter), 1);
+        }
       }
     } else if (event.metaKey || event.ctrlKey) {
       if (currentFilters.includes(newFilter)) {
         currentFilters.splice(currentFilters.indexOf(newFilter), 1);
       } else {
+        // Remove from exclude when Ctrl/Cmd clicking into inclusion
+        if (excludeFilters.includes(newFilter)) {
+          excludeFilters.splice(excludeFilters.indexOf(newFilter), 1);
+        }
         currentFilters.push(newFilter);
       }
     } else {
+      // Regular click: if excluded, switch to included; otherwise single-select
+      if (excludeFilters.includes(newFilter)) {
+        excludeFilters.splice(excludeFilters.indexOf(newFilter), 1);
+      }
       currentFilters.splice(0, currentFilters.length, newFilter);
     }
   }

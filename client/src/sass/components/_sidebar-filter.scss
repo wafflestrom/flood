@@ -43,6 +43,28 @@
       }
     }
 
+    &.is-excluded {
+      @include themes.theme('color', 'sidebar-filter--foreground--excluded');
+      font-weight: 700;
+
+      .badge {
+        @include themes.theme('background', 'sidebar-filter--count--background--excluded');
+        @include themes.theme('color', 'sidebar-filter--count--foreground--excluded');
+      }
+
+      .icon {
+        @include themes.theme('fill', 'sidebar-filter--foreground--excluded');
+      }
+
+      .icon--exclude {
+        @include themes.theme('fill', 'sidebar-filter--foreground--excluded');
+        height: 10px;
+        width: 10px;
+        margin-right: 4px;
+        flex-shrink: 0;
+      }
+    }
+
     &--heading {
       cursor: default;
       font-size: 0.8em;

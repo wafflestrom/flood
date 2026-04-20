@@ -143,6 +143,7 @@
   "filter.tag.title": "Filter by Tag",
   "filter.tracker.title": "Filter by Tracker",
   "filter.untagged": "Untagged",
+  "filter.reset": "Reset filters",
   "general.ago": "ago",
   "general.clipboard.copied": "Copied",
   "general.clipboard.copy": "Copy",
