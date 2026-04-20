@@ -88,7 +88,7 @@ const StocktakeRelocated: FC<StocktakeRelocatedProps> = ({
     });
   }, [relocatedTorrents, search, sortField, sortDir]);
 
-  const handleMoveAndHash = useCallback(
+  const handleRepointAndCheck = useCallback(
     async (t: StocktakeTorrentMatch) => {
       if (!t.suggestedPath) return;
       setActionPending((prev) => new Set(prev).add(t.hash));
@@ -137,8 +137,8 @@ const StocktakeRelocated: FC<StocktakeRelocatedProps> = ({
     <div className="stocktake__tab-content">
       <p className="stocktake__description">
         These torrents point to the wrong directory but matching files were found elsewhere by name. Click{' '}
-        <strong>Move &amp; Hash</strong> to update the torrent&apos;s directory to where the files actually are and
-        trigger a hash check.
+        <strong>Repoint &amp; Check</strong> to update the torrent&apos;s base directory to where the files actually are
+        and trigger a hash check. No files are moved — only the torrent&apos;s directory setting changes.
       </p>
       <div className="stocktake__controls">
         <input
@@ -196,9 +196,15 @@ const StocktakeRelocated: FC<StocktakeRelocatedProps> = ({
                       type="button"
                       className={done === 'error' ? 'stocktake__btn-check' : 'stocktake__btn-add'}
                       disabled={pending || !!done}
-                      onClick={() => handleMoveAndHash(t)}
+                      onClick={() => handleRepointAndCheck(t)}
                     >
-                      {pending ? 'Moving…' : done === 'moved' ? 'Moved' : done === 'error' ? 'Failed' : 'Move & Hash'}
+                      {pending
+                        ? 'Checking…'
+                        : done === 'moved'
+                        ? 'Done ✓'
+                        : done === 'error'
+                        ? 'Failed'
+                        : 'Repoint & Check'}
                     </button>
                   </td>
                 </tr>

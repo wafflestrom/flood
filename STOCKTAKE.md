@@ -140,7 +140,7 @@ Relocated torrents appear in a dedicated tab showing:
 
 - Current (wrong) base path
 - Found-at path (where files actually are)
-- **Move & Hash** button — calls `POST /api/torrents/move` with `moveFiles: false` and `isCheckHash: true` to update the torrent's directory and trigger a hash check without moving any files
+- **Repoint & Check** button — calls `POST /api/torrents/move` with `moveFiles: false` and `isCheckHash: true` to update the torrent's directory and trigger a hash check without moving any files
 
 ### Design Decisions
 
