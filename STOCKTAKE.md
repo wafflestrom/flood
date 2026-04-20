@@ -6,7 +6,7 @@ Stocktake is a disk-vs-torrent cross-referencing tool built into Flood. It scans
 
 1. **Scan** — reads top-level entries from each scan directory (non-recursive, fast)
 2. **Match** — maps each torrent's `basePath`/`directory` to a disk entry via path normalisation; then falls back to name-based matching for unmatched torrents
-3. **Classify** — labels every torrent as seeding, stopped, downloading, error, orphaned, or relocated; labels every disk entry as tied or untied
+3. **Classify** — labels every torrent as seeding, stopped, downloading, error, orphaned, or repointable; labels every disk entry as tied or untied
 4. **Summarise** — produces per-directory breakdowns and aggregate stats
 
 Results are cached server-side after each scan and served from cache on subsequent `GET` requests until a new `POST /scan` is triggered.
@@ -63,7 +63,7 @@ See `shared/types/Stocktake.ts` for full type definitions:
   - **Dashboard** — summary stats grid, size breakdown, scanned directories
   - **Untied Files** — sortable/filterable table of disk entries with no torrent; includes .torrent matching controls and match indicators (🔗 icon, tinted rows, "Add to Client" buttons)
   - **Orphaned Torrents** — sortable/filterable table of torrents missing from disk
-  - **Relocated** — (appears when matches found) torrents whose files exist on disk at a different path; "Move & Hash" button to fix each one
+  - **Repointable** — (appears when matches found) torrents whose files exist on disk at a different path; "Repoint & Hash" button to fix each one
   - **Stopped** — (appears when present) stopped torrents that still have files on disk
   - **All Torrents** — full torrent list with disk-match status
   - **Disk Usage** — per-directory bar charts showing tied vs untied space
@@ -114,7 +114,7 @@ The matching feature lets users reconnect untied disk files with .torrent files 
 
 `info.name` is a Buffer. The service attempts UTF-8 decoding first, falling back to latin1 if the UTF-8 result contains replacement characters.
 
-## Relocated Torrent Matching
+## Repointable Torrent Matching
 
 When a torrent's `basePath` doesn't match any disk entry by path, the scan falls back to name-based matching. This catches torrents whose files have been moved to a different directory (e.g. from `/data/unsorted/` to `/data/television/`).
 
@@ -131,20 +131,20 @@ When a torrent's `basePath` doesn't match any disk entry by path, the scan falls
 Each `StocktakeTorrentMatch` has a `matchType` field:
 
 - `'path'` — matched by exact path (normal case)
-- `'name'` — matched by name at a different location (relocated)
+- `'name'` — matched by name at a different location (repointable)
 - `null` — no match found
 
-### Relocated Tab
+### Repointable Tab
 
-Relocated torrents appear in a dedicated tab showing:
+Repointable torrents appear in a dedicated tab showing:
 
 - Current (wrong) base path
 - Found-at path (where files actually are)
-- **Repoint & Check** button — calls `POST /api/torrents/move` with `moveFiles: false` and `isCheckHash: true` to update the torrent's directory and trigger a hash check without moving any files
+- **Repoint & Hash** button — calls `POST /api/torrents/move` with `moveFiles: false` and `isCheckHash: true` to update the torrent's directory and trigger a hash check without moving any files
 
 ### Design Decisions
 
-- **Separate status** — relocated torrents get `status: 'relocated'` rather than being folded into stopped/seeding. This makes them actionable in the UI without noise.
+- **Separate status** — repointable torrents get `status: 'relocated'` internally rather than being folded into stopped/seeding. This makes them actionable in the UI without noise.
 - **`suggestedPath`** — stores the `sourceDir` (parent directory) where files were found, not the full disk entry path. This is what gets passed to the move API.
 - **No auto-fix** — the user must explicitly click "Move & Hash" per torrent. Automated bulk moves are too risky without review.
 

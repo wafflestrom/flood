@@ -137,20 +137,20 @@ const StocktakeRelocated: FC<StocktakeRelocatedProps> = ({
     <div className="stocktake__tab-content">
       <p className="stocktake__description">
         These torrents point to the wrong directory but matching files were found elsewhere by name. Click{' '}
-        <strong>Repoint &amp; Check</strong> to update the torrent&apos;s base directory to where the files actually are
+        <strong>Repoint &amp; Hash</strong> to update the torrent&apos;s base directory to where the files actually are
         and trigger a hash check. No files are moved — only the torrent&apos;s directory setting changes.
       </p>
       <div className="stocktake__controls">
         <input
           className="stocktake__search"
           type="text"
-          placeholder="Search relocated torrents..."
+          placeholder="Search repointable torrents..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
       <div className="stocktake__count">
-        {filtered.length} relocated torrent{filtered.length !== 1 ? 's' : ''} ({formatSize(totalSize)})
+        {filtered.length} repointable torrent{filtered.length !== 1 ? 's' : ''} ({formatSize(totalSize)})
       </div>
       <div className="stocktake__table-wrapper">
         <table className="stocktake__table">
@@ -199,12 +199,12 @@ const StocktakeRelocated: FC<StocktakeRelocatedProps> = ({
                       onClick={() => handleRepointAndCheck(t)}
                     >
                       {pending
-                        ? 'Checking…'
+                        ? 'Hashing…'
                         : done === 'moved'
                         ? 'Done ✓'
                         : done === 'error'
                         ? 'Failed'
-                        : 'Repoint & Check'}
+                        : 'Repoint & Hash'}
                     </button>
                   </td>
                 </tr>
@@ -213,7 +213,7 @@ const StocktakeRelocated: FC<StocktakeRelocatedProps> = ({
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="stocktake__empty">
-                  No relocated torrents found. All torrents point to the correct location.
+                  No repointable torrents found. All torrents point to the correct location.
                 </td>
               </tr>
             )}

@@ -57,7 +57,7 @@ const StocktakeDashboard: FC<StocktakeDashboardProps> = ({summary, scanDirs}: St
         {summary.relocatedCount > 0 && (
           <div className="stocktake__stat-card stocktake__stat-card--warning">
             <div className="stocktake__stat-value">{summary.relocatedCount}</div>
-            <div className="stocktake__stat-label">Relocated</div>
+            <div className="stocktake__stat-label">Repointable</div>
           </div>
         )}
       </div>

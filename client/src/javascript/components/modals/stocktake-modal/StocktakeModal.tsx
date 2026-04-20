@@ -223,7 +223,7 @@ const StocktakeModal: FC = () => {
               relocatedTorrents: result.relocatedTorrents,
               onTorrentAdded: handleTorrentAdded,
             },
-            label: `Relocated (${result.summary.relocatedCount})`,
+            label: `Repointable (${result.summary.relocatedCount})`,
           },
         }
       : {}),
