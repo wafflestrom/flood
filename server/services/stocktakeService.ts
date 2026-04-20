@@ -252,8 +252,10 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
   const normalisedRoots = scanDirs.map(normalisePath);
 
   // Build disk entry lookup: normalised path -> DiskEntry
+  // Also build name-based lookup for fallback matching (case-insensitive)
   const allDisk: StocktakeDiskEntry[] = [];
   const pathToDisk: Map<string, StocktakeDiskEntry> = new Map();
+  const nameToDisk: Map<string, StocktakeDiskEntry[]> = new Map();
 
   for (const [sourceDir, files] of allDiskFiles) {
     for (const f of files) {
@@ -268,6 +270,14 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
       };
       allDisk.push(entry);
       pathToDisk.set(normalisePath(f.filePath), entry);
+
+      const lowerName = entry.name.toLowerCase();
+      const existing = nameToDisk.get(lowerName);
+      if (existing) {
+        existing.push(entry);
+      } else {
+        nameToDisk.set(lowerName, [entry]);
+      }
     }
   }
 
@@ -307,7 +317,56 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
       diskEntryPath,
       filesOnDisk: !!diskEntryPath,
       inScannedDir,
+      matchType: diskEntryPath ? 'path' : null,
+      suggestedPath: null,
     });
+  }
+
+  // Name-based fallback: for unmatched torrents, search all disk entries by name.
+  // This catches torrents whose files exist on disk but at a different path
+  // (e.g. torrent points to /data/old/Ubuntu but files are at /data/new/Ubuntu).
+  // Many-to-one is valid — multiple torrents (cross-seeding) can match one disk entry.
+  for (const m of allTorrentMatches) {
+    if (m.diskEntryPath) continue;
+
+    const candidates = nameToDisk.get(m.name.toLowerCase());
+    if (!candidates || candidates.length === 0) continue;
+
+    // For files: prefer exact size match, then accept any shape-compatible entry.
+    // For directories: can't compare sizes (not computed yet), accept shape match.
+    let bestMatch: StocktakeDiskEntry | null = null;
+
+    for (const candidate of candidates) {
+      // Shape check: files match files, directories match directories
+      const torrentIsDir = m.basePath !== m.directory || (m.basePath === m.directory && candidate.isDirectory);
+      if (candidate.isDirectory !== torrentIsDir) {
+        // Allow match if candidate is a directory (multi-file torrent could be stored
+        // in the directory name matching the torrent name)
+        if (!candidate.isDirectory) continue;
+      }
+
+      if (!candidate.isDirectory && candidate.size > 0 && m.sizeBytes > 0) {
+        // For files: require size within ±10%
+        const ratio = candidate.size / m.sizeBytes;
+        if (ratio >= 0.9 && ratio <= 1.1) {
+          bestMatch = candidate;
+          break;
+        }
+      } else {
+        // Directory or unknown size: accept the match
+        if (!bestMatch) bestMatch = candidate;
+      }
+    }
+
+    if (bestMatch) {
+      bestMatch.matchedTorrentHashes.push(m.hash);
+      m.diskEntryPath = bestMatch.path;
+      m.filesOnDisk = true;
+      m.inScannedDir = true;
+      m.matchType = 'name';
+      // suggestedPath = the parent directory where the files were actually found
+      m.suggestedPath = bestMatch.sourceDir;
+    }
   }
 
   // Batch existence check for torrents not matched to a scanned disk entry
@@ -351,11 +410,16 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
   let downloadingCount = 0;
   let errorCount = 0;
   let outsideCount = 0;
+  let relocatedCount = 0;
   const orphanedTorrents: StocktakeTorrentMatch[] = [];
 
   for (const m of allTorrentMatches) {
     const t = torrentByHash.get(m.hash)!;
-    if (m.filesOnDisk) {
+    if (m.matchType === 'name') {
+      // Files found by name at a different location — surface as relocated
+      m.status = 'relocated';
+      relocatedCount++;
+    } else if (m.filesOnDisk) {
       m.status = getTorrentStatus(t);
     } else if (t.percentComplete >= 100) {
       m.status = 'orphaned';
@@ -471,12 +535,16 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     downloadingCount,
     errorCount,
     outsideCount,
+    relocatedCount,
   };
+
+  const relocatedTorrents = allTorrentMatches.filter((m) => m.status === 'relocated');
 
   const result: StocktakeResult = {
     summary,
     untiedFiles,
     orphanedTorrents,
+    relocatedTorrents,
     allTorrents: allTorrentMatches,
     allDiskEntries: allDisk,
     dirBreakdown,

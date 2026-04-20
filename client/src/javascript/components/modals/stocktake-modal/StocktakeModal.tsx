@@ -10,6 +10,7 @@ import StocktakeAdded from './StocktakeAdded';
 import StocktakeDashboard from './StocktakeDashboard';
 import StocktakeDiskUsage from './StocktakeDiskUsage';
 import StocktakeOrphaned from './StocktakeOrphaned';
+import StocktakeRelocated from './StocktakeRelocated';
 import StocktakeStopped from './StocktakeStopped';
 import StocktakeTorrents from './StocktakeTorrents';
 import StocktakeUntied from './StocktakeUntied';
@@ -214,6 +215,18 @@ const StocktakeModal: FC = () => {
       },
       label: `Orphaned (${result.summary.orphanedCount})`,
     },
+    ...(result.relocatedTorrents.length > 0
+      ? {
+          relocated: {
+            content: StocktakeRelocated,
+            props: {
+              relocatedTorrents: result.relocatedTorrents,
+              onTorrentAdded: handleTorrentAdded,
+            },
+            label: `Relocated (${result.summary.relocatedCount})`,
+          },
+        }
+      : {}),
     ...(stoppedWithFiles.length > 0
       ? {
           stopped: {

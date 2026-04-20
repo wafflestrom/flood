@@ -597,6 +597,14 @@
   }
 }
 
+.stocktake__row--relocated {
+  background: rgba(#f0ad4e, 0.06) !important;
+
+  &:hover {
+    background: rgba(#f0ad4e, 0.1) !important;
+  }
+}
+
 .stocktake__match-icon {
   margin-right: 2px;
 }

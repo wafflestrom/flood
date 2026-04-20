@@ -8,6 +8,8 @@ export interface StocktakeDiskEntry {
   matchedTorrentHashes: string[];
 }
 
+export type StocktakeMatchType = 'path' | 'name' | null;
+
 export interface StocktakeTorrentMatch {
   hash: string;
   name: string;
@@ -23,6 +25,9 @@ export interface StocktakeTorrentMatch {
   diskEntryPath: string | null;
   filesOnDisk: boolean;
   inScannedDir: boolean;
+  matchType: StocktakeMatchType;
+  // When matched by name to a different location, the path where files were found
+  suggestedPath: string | null;
 }
 
 export interface StocktakeDirBreakdown {
@@ -50,12 +55,14 @@ export interface StocktakeSummary {
   downloadingCount: number;
   errorCount: number;
   outsideCount: number;
+  relocatedCount: number;
 }
 
 export interface StocktakeResult {
   summary: StocktakeSummary;
   untiedFiles: StocktakeDiskEntry[];
   orphanedTorrents: StocktakeTorrentMatch[];
+  relocatedTorrents: StocktakeTorrentMatch[];
   allTorrents: StocktakeTorrentMatch[];
   allDiskEntries: StocktakeDiskEntry[];
   dirBreakdown: StocktakeDirBreakdown[];
