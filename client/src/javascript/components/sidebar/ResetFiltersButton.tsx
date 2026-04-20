@@ -2,22 +2,10 @@ import {FC} from 'react';
 import {observer} from 'mobx-react-lite';
 import {useLingui} from '@lingui/react';
 
-import {css} from '@client/styled-system/css';
 import TorrentFilterStore from '@client/stores/TorrentFilterStore';
+import TorrentStore from '@client/stores/TorrentStore';
 
-const resetButtonStyle = css({
-  cursor: 'pointer',
-  fontSize: '0.8em',
-  fontWeight: 500,
-  padding: '6px 20px',
-  textAlign: 'start',
-  width: '100%',
-  opacity: 0.7,
-  transition: 'opacity 0.15s',
-  _hover: {
-    opacity: 1,
-  },
-});
+import Badge from '../general/Badge';
 
 const ResetFiltersButton: FC = observer(() => {
   const {i18n} = useLingui();
@@ -26,15 +14,25 @@ const ResetFiltersButton: FC = observer(() => {
     return null;
   }
 
+  const filteredCount = TorrentStore.filteredTorrents.length;
+  const totalCount = Object.keys(TorrentStore.torrents).length;
+
   return (
-    <button
-      className={resetButtonStyle}
-      type="button"
-      onClick={() => TorrentFilterStore.clearAllFilters()}
-      aria-label={i18n._('filter.reset')}
-    >
-      {i18n._('filter.reset')}
-    </button>
+    <ul className="sidebar-filter sidebar__item sidebar-filter--reset" role="menu">
+      <li className="sidebar-filter__item" role="none">
+        <button
+          className="sidebar-filter__item sidebar-filter__item--reset"
+          type="button"
+          onClick={() => TorrentFilterStore.clearAllFilters()}
+          role="menuitem"
+        >
+          <span className="name">{i18n._('filter.reset')}</span>
+          <Badge>
+            {filteredCount} / {totalCount}
+          </Badge>
+        </button>
+      </li>
+    </ul>
   );
 });
 
