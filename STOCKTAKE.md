@@ -5,8 +5,8 @@ Stocktake is a disk-vs-torrent cross-referencing tool built into Flood. It scans
 ## How It Works
 
 1. **Scan** — reads top-level entries from each scan directory (non-recursive, fast)
-2. **Match** — maps each torrent's `basePath`/`directory` to a disk entry via path normalisation
-3. **Classify** — labels every torrent as seeding, stopped, downloading, error, or orphaned; labels every disk entry as tied or untied
+2. **Match** — maps each torrent's `basePath`/`directory` to a disk entry via path normalisation; then falls back to name-based matching for unmatched torrents
+3. **Classify** — labels every torrent as seeding, stopped, downloading, error, orphaned, or relocated; labels every disk entry as tied or untied
 4. **Summarise** — produces per-directory breakdowns and aggregate stats
 
 Results are cached server-side after each scan and served from cache on subsequent `GET` requests until a new `POST /scan` is triggered.
@@ -45,6 +45,7 @@ See `shared/types/Stocktake.ts` for full type definitions:
   - `summary` — aggregate counts and sizes
   - `untiedFiles` — disk entries with no matching torrent
   - `orphanedTorrents` — torrents whose files are missing
+  - `relocatedTorrents` — torrents matched by name at a different path
   - `allTorrents` / `allDiskEntries` — complete lists for the UI
   - `dirBreakdown` — per-directory tied/untied stats
   - `scanDirs` — directories that were scanned
@@ -62,6 +63,8 @@ See `shared/types/Stocktake.ts` for full type definitions:
   - **Dashboard** — summary stats grid, size breakdown, scanned directories
   - **Untied Files** — sortable/filterable table of disk entries with no torrent; includes .torrent matching controls and match indicators (🔗 icon, tinted rows, "Add to Client" buttons)
   - **Orphaned Torrents** — sortable/filterable table of torrents missing from disk
+  - **Relocated** — (appears when matches found) torrents whose files exist on disk at a different path; "Move & Hash" button to fix each one
+  - **Stopped** — (appears when present) stopped torrents that still have files on disk
   - **All Torrents** — full torrent list with disk-match status
   - **Disk Usage** — per-directory bar charts showing tied vs untied space
   - **Matched & Added** — (appears after adding torrents) tracks torrents added via the match flow
@@ -111,6 +114,40 @@ The matching feature lets users reconnect untied disk files with .torrent files 
 
 `info.name` is a Buffer. The service attempts UTF-8 decoding first, falling back to latin1 if the UTF-8 result contains replacement characters.
 
+## Relocated Torrent Matching
+
+When a torrent's `basePath` doesn't match any disk entry by path, the scan falls back to name-based matching. This catches torrents whose files have been moved to a different directory (e.g. from `/data/unsorted/` to `/data/television/`).
+
+### How It Works
+
+1. **Path match first** — standard exact-path matching against normalised scan directory entries
+2. **Name fallback** — for unmatched torrents, search all disk entries by `name` (case-insensitive)
+3. **Shape check** — files must match files, directories must match directories (directories always accepted for multi-file torrents)
+4. **Size tolerance** — for file matches, size must be within ±10%
+5. **Many-to-one** — multiple torrents can match the same disk entry (cross-seeding across trackers)
+
+### Match Types
+
+Each `StocktakeTorrentMatch` has a `matchType` field:
+
+- `'path'` — matched by exact path (normal case)
+- `'name'` — matched by name at a different location (relocated)
+- `null` — no match found
+
+### Relocated Tab
+
+Relocated torrents appear in a dedicated tab showing:
+
+- Current (wrong) base path
+- Found-at path (where files actually are)
+- **Move & Hash** button — calls `POST /api/torrents/move` with `moveFiles: false` and `isCheckHash: true` to update the torrent's directory and trigger a hash check without moving any files
+
+### Design Decisions
+
+- **Separate status** — relocated torrents get `status: 'relocated'` rather than being folded into stopped/seeding. This makes them actionable in the UI without noise.
+- **`suggestedPath`** — stores the `sourceDir` (parent directory) where files were found, not the full disk entry path. This is what gets passed to the move API.
+- **No auto-fix** — the user must explicitly click "Move & Hash" per torrent. Automated bulk moves are too risky without review.
+
 ## Design Decisions
 
 - **Top-level only** — scans only immediate children of each directory, avoiding slow recursive walks on large media libraries.
@@ -141,8 +178,8 @@ The parallel `du` with a time budget is the dominant win. On warm caches all 76 
 ### SSH access
 
 ```bash
-# Must force IPv4 — IPv6 link-local hangs on key exchange
-ssh -4 reginald@reginald.local
+# Key is stored in a vault protected by touch id - user may be slow to unlock so be patient and wait at least 120 seconds before timing out
+ssh reginald@reginald.local
 
 # Flood runs as user `flood`, install dir: /home/flood/flood/
 # Service: flood.service (systemd)
@@ -255,19 +292,23 @@ The `getDirectorySizes()` function dominates scan time. To benchmark alternative
 pnpm run build
 
 # Rsync to staging area, then copy into place and restart
-rsync -az --delete dist/ package.json pnpm-lock.yaml \
-  reginald@reginald.local:/tmp/flood-deploy/
+DEPLOY_DIR=$(ssh reginald@reginald.local 'mktemp -d') || { echo "mktemp failed"; exit 1; }
+[[ "$DEPLOY_DIR" == /tmp/* ]] || { echo "unexpected temp dir: $DEPLOY_DIR"; exit 1; }
 
-ssh -4 reginald@reginald.local "\
+rsync -az --delete dist/ package.json pnpm-lock.yaml \
+  reginald@reginald.local:"$DEPLOY_DIR"/
+
+ssh reginald@reginald.local "\
+  set -e && \
+  trap 'rm -rf $DEPLOY_DIR' EXIT && \
   sudo rsync -a --delete --exclude=package.json --exclude=pnpm-lock.yaml \
-    /tmp/flood-deploy/ /home/flood/flood/dist/ && \
-  sudo cp /tmp/flood-deploy/package.json /tmp/flood-deploy/pnpm-lock.yaml \
+    $DEPLOY_DIR/ /home/flood/flood/dist/ && \
+  sudo cp $DEPLOY_DIR/package.json $DEPLOY_DIR/pnpm-lock.yaml \
     /home/flood/flood/ && \
   sudo chown -R flood:flood /home/flood/flood/ && \
   sudo systemctl restart flood && \
   sleep 2 && \
-  sudo systemctl status flood --no-pager && \
-  rm -rf /tmp/flood-deploy"
+  sudo systemctl status flood --no-pager"
 ```
 
 ## Current Limitations
