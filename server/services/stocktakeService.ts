@@ -1,9 +1,7 @@
-import {execFile} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {promisify} from 'node:util';
 
-import type {TorrentProperties} from '@shared/types/Torrent';
 import type {
   StocktakeDirBreakdown,
   StocktakeDiskEntry,
@@ -11,9 +9,10 @@ import type {
   StocktakeSummary,
   StocktakeTorrentMatch,
 } from '@shared/types/Stocktake';
+import type {TorrentProperties} from '@shared/types/Torrent';
 
 import config from '../../config';
-import type {ServiceInstances} from '../index';
+import type {ServiceInstances} from './index';
 
 interface DiskFile {
   filePath: string;
@@ -22,17 +21,18 @@ interface DiskFile {
   isDirectory: boolean;
 }
 
+const DU_CONCURRENCY = 8;
+const DU_TIMEOUT_MS = 2000;
+
 function normalisePath(p: string): string {
   return path.normalize(p).replace(/\/+$/, '');
 }
 
-function findTopLevelEntry(torrentPath: string, contentRoots: string[]): string | null {
-  const normPath = normalisePath(torrentPath);
+function findTopLevelEntry(normPath: string, normRoots: string[]): string | null {
   let bestRoot: string | null = null;
   let bestEntry: string | null = null;
 
-  for (const root of contentRoots) {
-    const normRoot = normalisePath(root);
+  for (const normRoot of normRoots) {
     if (!normPath.startsWith(normRoot + '/') && normPath !== normRoot) {
       continue;
     }
@@ -41,7 +41,6 @@ function findTopLevelEntry(torrentPath: string, contentRoots: string[]): string 
     if (topComponent === '.' || topComponent === '') {
       continue;
     }
-    // Prefer the most specific (longest) matching root
     if (!bestRoot || normRoot.length > bestRoot.length) {
       bestRoot = normRoot;
       bestEntry = path.join(normRoot, topComponent);
@@ -83,30 +82,92 @@ async function getTopLevelEntries(root: string, skipPaths: Set<string>): Promise
   return entries;
 }
 
+function parseDuLine(line: string, isLinux: boolean): [string, number] | null {
+  const tab = line.indexOf('\t');
+  if (tab === -1) return null;
+  const size = parseInt(line.substring(0, tab), 10);
+  const dirPath = line.substring(tab + 1);
+  if (Number.isNaN(size)) return null;
+  return [dirPath, isLinux ? size : size * 1024];
+}
+
+// Parallel du with global time budget: spawns up to DU_CONCURRENCY
+// processes and kills remaining when DU_TIMEOUT_MS is reached.
 async function getDirectorySizes(dirs: string[]): Promise<Map<string, number>> {
   if (dirs.length === 0) return new Map();
+
   const result = new Map<string, number>();
-  const execFileAsync = promisify(execFile);
   const isLinux = process.platform === 'linux';
-  const args = isLinux ? ['-sb', ...dirs] : ['-sk', ...dirs];
-  let stdout = '';
-  try {
-    const res = await execFileAsync('du', args, {maxBuffer: 10 * 1024 * 1024});
-    stdout = res.stdout;
-  } catch (e: unknown) {
-    // du exits non-zero on permission errors but still produces partial output
-    if (e && typeof e === 'object' && 'stdout' in e && typeof (e as {stdout: unknown}).stdout === 'string') {
-      stdout = (e as {stdout: string}).stdout;
+  const flag = isLinux ? '-sb' : '-sk';
+
+  const queue = [...dirs];
+  const active = new Set<ReturnType<typeof spawn>>();
+  let timedOut = false;
+
+  const deadline = Date.now() + DU_TIMEOUT_MS;
+
+  const runOne = (dir: string): Promise<void> =>
+    new Promise((resolve) => {
+      if (timedOut) {
+        resolve();
+        return;
+      }
+
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        timedOut = true;
+        resolve();
+        return;
+      }
+
+      const proc = spawn('du', [flag, dir], {stdio: ['ignore', 'pipe', 'ignore']});
+      active.add(proc);
+
+      let stdout = '';
+      proc.stdout.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
+
+      const timer = setTimeout(() => {
+        proc.kill('SIGTERM');
+      }, remaining);
+
+      proc.on('close', () => {
+        clearTimeout(timer);
+        active.delete(proc);
+        for (const line of stdout.trim().split('\n')) {
+          const parsed = parseDuLine(line, isLinux);
+          if (parsed) result.set(parsed[0], parsed[1]);
+        }
+        resolve();
+      });
+    });
+
+  // Process queue with bounded concurrency
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < DU_CONCURRENCY; i++) {
+    workers.push(
+      (async () => {
+        while (!timedOut) {
+          const dir = queue.shift();
+          if (!dir) break;
+          await runOne(dir);
+        }
+      })(),
+    );
+  }
+
+  // Global timeout: kill all active processes
+  const globalTimer = setTimeout(() => {
+    timedOut = true;
+    for (const proc of active) {
+      proc.kill('SIGTERM');
     }
-  }
-  if (!stdout) return result;
-  for (const line of stdout.trim().split('\n')) {
-    const tab = line.indexOf('\t');
-    if (tab === -1) continue;
-    const size = parseInt(line.substring(0, tab), 10);
-    const dirPath = line.substring(tab + 1);
-    result.set(dirPath, isLinux ? size : size * 1024);
-  }
+  }, DU_TIMEOUT_MS);
+
+  await Promise.all(workers);
+  clearTimeout(globalTimer);
+
   return result;
 }
 
@@ -152,7 +213,6 @@ function deriveContentRoots(torrents: TorrentProperties[]): string[] {
     }
   }
 
-  // Keep directories that directly contain >= 5 torrents
   const MIN_TORRENTS = 5;
   const significant = [...dirCounts.entries()]
     .filter(([, count]) => count >= MIN_TORRENTS)
@@ -165,12 +225,11 @@ function deriveContentRoots(torrents: TorrentProperties[]): string[] {
 export async function runStocktakeScan(services: ServiceInstances): Promise<StocktakeResult> {
   const startTime = Date.now();
 
-  // Force refresh torrent list from rtorrent
-  await services.torrentService.fetchTorrentList();
+  // O1: Use polled torrent list cache instead of forcing an SCGI round-trip.
+  // The polling system refreshes every 2s when a user is connected.
   const torrentList = services.torrentService.getTorrentList();
-  const torrents = Object.values(torrentList);
+  const torrents: TorrentProperties[] = Object.values(torrentList);
 
-  // Use CLI dirs if provided, otherwise auto-detect from torrent base paths
   const explicitDirs = config.stocktakeDirs ?? [];
   const scanDirs = explicitDirs.length > 0 ? explicitDirs : deriveContentRoots(torrents);
 
@@ -178,16 +237,18 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     throw new Error('No scan directories could be determined. No torrents have base paths set.');
   }
 
-  // Build set of scan dirs to skip when scanning parent dirs
   const scanDirNorms = new Set(scanDirs.map(normalisePath));
 
-  // Scan all configured directories for top-level entries
+  // O2: Scan all dirs in parallel instead of sequentially
   const allDiskFiles: Map<string, DiskFile[]> = new Map();
-  for (const dir of scanDirs) {
-    const entries = await getTopLevelEntries(dir, scanDirNorms);
-    allDiskFiles.set(dir, entries);
-  }
+  await Promise.all(
+    scanDirs.map(async (dir) => {
+      const entries = await getTopLevelEntries(dir, scanDirNorms);
+      allDiskFiles.set(dir, entries);
+    }),
+  );
 
+  // O4: Pre-compute normalised roots (passed directly to findTopLevelEntry)
   const normalisedRoots = scanDirs.map(normalisePath);
 
   // Build disk entry lookup: normalised path -> DiskEntry
@@ -210,18 +271,16 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     }
   }
 
-  // Match each torrent to a disk entry
+  // O4: Pre-normalise torrent candidate paths for matching
   const allTorrentMatches: StocktakeTorrentMatch[] = [];
 
   for (const t of torrents) {
     let diskEntryPath: string | null = null;
     let inScannedDir = false;
-    let filesOnDisk = false;
 
-    // Try basePath, then directory/name (reliable for single-file), then directory alone
     const candidatePaths = [t.basePath, path.join(t.directory, t.name), t.directory].filter(Boolean) as string[];
     for (const candidatePath of candidatePaths) {
-      const topEntryPath = findTopLevelEntry(candidatePath, normalisedRoots);
+      const topEntryPath = findTopLevelEntry(normalisePath(candidatePath), normalisedRoots);
       if (topEntryPath) {
         inScannedDir = true;
         const diskEntry = pathToDisk.get(topEntryPath);
@@ -251,14 +310,14 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     });
   }
 
-  // Batch existence check: readdir unique parent dirs instead of per-torrent fs.access
+  // Batch existence check for torrents not matched to a scanned disk entry
   const needsCheck = allTorrentMatches.filter((m) => !m.diskEntryPath);
   const parentDirs = new Set<string>();
   for (const m of needsCheck) {
     const bp = m.basePath;
     if (bp) {
       parentDirs.add(path.dirname(bp));
-      parentDirs.add(bp); // basePath may itself be a directory
+      parentDirs.add(bp);
     }
   }
 
@@ -270,7 +329,7 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
         for (const entry of entries) {
           existingPaths.add(path.join(dir, entry));
         }
-        existingPaths.add(dir); // dir itself exists
+        existingPaths.add(dir);
       } catch {
         // directory doesn't exist or not accessible
       }
@@ -283,8 +342,17 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     }
   }
 
-  // Set final status
-  const torrentByHash = new Map(torrents.map((t) => [t.hash, t]));
+  // Set final status and compute tied directory sizes from torrent metadata
+  const torrentByHash = new Map<string, TorrentProperties>(torrents.map((t) => [t.hash, t]));
+
+  // O5: Single-pass status counting
+  let seedingCount = 0;
+  let stoppedCount = 0;
+  let downloadingCount = 0;
+  let errorCount = 0;
+  let outsideCount = 0;
+  const orphanedTorrents: StocktakeTorrentMatch[] = [];
+
   for (const m of allTorrentMatches) {
     const t = torrentByHash.get(m.hash)!;
     if (m.filesOnDisk) {
@@ -296,9 +364,28 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     } else {
       m.status = 'downloading';
     }
+
+    switch (m.status) {
+      case 'seeding':
+        seedingCount++;
+        break;
+      case 'stopped':
+        stoppedCount++;
+        break;
+      case 'downloading':
+        downloadingCount++;
+        break;
+      case 'error':
+        errorCount++;
+        break;
+      case 'orphaned':
+        orphanedTorrents.push(m);
+        break;
+    }
+    if (!m.inScannedDir) outsideCount++;
   }
 
-  // Compute directory sizes from matched torrent data (avoids slow recursive stat)
+  // Compute tied directory sizes from torrent metadata (avoids recursive stat)
   for (const entry of allDisk) {
     if (entry.isDirectory && entry.size === 0 && entry.matchedTorrentHashes.length > 0) {
       entry.size = entry.matchedTorrentHashes.reduce((acc, hash) => {
@@ -308,10 +395,10 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
     }
   }
 
-  // Classify
+  // Classify untied files
   let untiedFiles = allDisk.filter((e) => e.matchedTorrentHashes.length === 0);
 
-  // Compute sizes for untied directories via single `du` subprocess
+  // O3: Parallel du with 2s time budget (benchmarked as fastest approach)
   const untiedDirs = untiedFiles.filter((e) => e.isDirectory && e.size === 0);
   if (untiedDirs.length > 0) {
     const sizeMap = await getDirectorySizes(untiedDirs.map((e) => e.path));
@@ -323,33 +410,50 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
   // Drop zero-size directories (empty or unreadable)
   untiedFiles = untiedFiles.filter((e) => !e.isDirectory || e.size > 0);
 
-  const orphanedTorrents = allTorrentMatches.filter((m) => m.status === 'orphaned');
+  // O5: Single-pass disk size aggregation + pre-grouped dir breakdown
+  let totalDiskSize = 0;
+  let tiedDiskSize = 0;
+  const dirBreakdownMap = new Map<
+    string,
+    {
+      totalCount: number;
+      tiedCount: number;
+      untiedCount: number;
+      totalSize: number;
+      tiedSize: number;
+      untiedSize: number;
+    }
+  >();
 
-  const seedingCount = allTorrentMatches.filter((m) => m.status === 'seeding').length;
-  const stoppedCount = allTorrentMatches.filter((m) => m.status === 'stopped').length;
-  const downloadingCount = allTorrentMatches.filter((m) => m.status === 'downloading').length;
-  const errorCount = allTorrentMatches.filter((m) => m.status === 'error').length;
-  const outsideCount = allTorrentMatches.filter((m) => !m.inScannedDir).length;
+  for (const dir of scanDirs) {
+    dirBreakdownMap.set(dir, {totalCount: 0, tiedCount: 0, untiedCount: 0, totalSize: 0, tiedSize: 0, untiedSize: 0});
+  }
 
-  const totalDiskSize = allDisk.reduce((acc, e) => acc + e.size, 0);
-  const tiedDiskSize = allDisk.filter((e) => e.matchedTorrentHashes.length > 0).reduce((acc, e) => acc + e.size, 0);
+  for (const e of allDisk) {
+    totalDiskSize += e.size;
+    const isTied = e.matchedTorrentHashes.length > 0;
+    if (isTied) tiedDiskSize += e.size;
+
+    const bd = dirBreakdownMap.get(e.sourceDir);
+    if (bd) {
+      bd.totalCount++;
+      bd.totalSize += e.size;
+      if (isTied) {
+        bd.tiedCount++;
+        bd.tiedSize += e.size;
+      } else {
+        bd.untiedCount++;
+        bd.untiedSize += e.size;
+      }
+    }
+  }
+
   const untiedDiskSize = untiedFiles.reduce((acc, e) => acc + e.size, 0);
   const torrentTotalSize = torrents.reduce((acc, t) => acc + t.sizeBytes, 0);
 
-  // Directory breakdown
   const dirBreakdown: StocktakeDirBreakdown[] = scanDirs.map((dir) => {
-    const entriesInDir = allDisk.filter((e) => e.sourceDir === dir);
-    const tied = entriesInDir.filter((e) => e.matchedTorrentHashes.length > 0);
-    const untied = entriesInDir.filter((e) => e.matchedTorrentHashes.length === 0);
-    return {
-      sourceDir: dir,
-      totalCount: entriesInDir.length,
-      tiedCount: tied.length,
-      untiedCount: untied.length,
-      totalSize: entriesInDir.reduce((acc, e) => acc + e.size, 0),
-      tiedSize: tied.reduce((acc, e) => acc + e.size, 0),
-      untiedSize: untied.reduce((acc, e) => acc + e.size, 0),
-    };
+    const bd = dirBreakdownMap.get(dir)!;
+    return {sourceDir: dir, ...bd};
   });
 
   const summary: StocktakeSummary = {
