@@ -241,6 +241,7 @@ export async function runStocktakeScan(services: ServiceInstances): Promise<Stoc
       directory: t.directory,
       status: 'unknown',
       trackerURIs: t.trackerURIs ?? [],
+      tags: t.tags ?? [],
       percentComplete: t.percentComplete,
       ratio: t.ratio,
       dateAdded: t.dateAdded,

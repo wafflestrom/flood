@@ -319,6 +319,74 @@
   gap: 6px;
 }
 
+.stocktake__filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+}
+
+.stocktake__filter-mode {
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 2px 8px;
+  border: 1px solid colors.$medium-grey;
+  border-radius: 4px;
+  background: transparent;
+  color: colors.$medium-grey;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &--exclude {
+    border-color: colors.$red;
+    color: colors.$red;
+  }
+}
+
+.stocktake__filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.stocktake__chip {
+  font-size: 0.7em;
+  padding: 2px 8px;
+  border: 1px solid rgba(colors.$white, 0.15);
+  border-radius: 12px;
+  background: transparent;
+  color: colors.$medium-grey;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: rgba(colors.$white, 0.4);
+  }
+
+  &--active {
+    background: rgba(colors.$blue, 0.2);
+    border-color: colors.$blue;
+    color: colors.$blue;
+  }
+
+  &--exclude {
+    background: rgba(colors.$red, 0.15);
+    border-color: colors.$red;
+    color: colors.$red;
+  }
+}
+
+.stocktake__td-tags {
+  max-width: 200px;
+
+  .stocktake__badge {
+    margin-right: 3px;
+    font-size: 0.85em;
+  }
+}
+
 // Disk usage cards
 .stocktake__disk-cards {
   display: flex;

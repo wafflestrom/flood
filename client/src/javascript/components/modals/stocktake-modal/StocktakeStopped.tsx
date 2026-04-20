@@ -13,7 +13,23 @@ function formatSize(bytes: number): string {
   return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
 }
 
-type SortField = 'name' | 'size' | 'percentComplete' | 'tracker' | 'ratio';
+function getTrackerHostname(t: StocktakeTorrentMatch): string {
+  if (!t.trackerURIs[0]) return '';
+  try {
+    return new URL(t.trackerURIs[0]).hostname;
+  } catch {
+    return t.trackerURIs[0];
+  }
+}
+
+type SortField = 'name' | 'size' | 'percentComplete' | 'tracker' | 'ratio' | 'tags';
+
+type FilterMode = 'include' | 'exclude';
+
+interface FilterSelection {
+  values: Set<string>;
+  mode: FilterMode;
+}
 
 interface StocktakeStoppedProps {
   stoppedTorrents: StocktakeTorrentMatch[];
@@ -26,27 +42,58 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [actionPending, setActionPending] = useState<Set<string>>(new Set());
   const [actionDone, setActionDone] = useState<Map<string, 'started' | 'checked' | 'error'>>(new Map());
+  const [trackerFilter, setTrackerFilter] = useState<FilterSelection>({values: new Set(), mode: 'include'});
+  const [tagFilter, setTagFilter] = useState<FilterSelection>({values: new Set(), mode: 'include'});
 
-  const getTracker = useCallback((t: StocktakeTorrentMatch): string => {
-    if (!t.trackerURIs[0]) return '';
-    try {
-      return new URL(t.trackerURIs[0]).hostname;
-    } catch {
-      return t.trackerURIs[0];
+  const allTrackers = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of stoppedTorrents) {
+      const tracker = getTrackerHostname(t);
+      if (tracker) set.add(tracker);
     }
-  }, []);
+    return Array.from(set).sort();
+  }, [stoppedTorrents]);
+
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of stoppedTorrents) {
+      for (const tag of t.tags) {
+        if (tag) set.add(tag);
+      }
+    }
+    return Array.from(set).sort();
+  }, [stoppedTorrents]);
 
   const filtered = useMemo(() => {
     let items = stoppedTorrents;
+
+    if (trackerFilter.values.size > 0) {
+      if (trackerFilter.mode === 'include') {
+        items = items.filter((t) => trackerFilter.values.has(getTrackerHostname(t)));
+      } else {
+        items = items.filter((t) => !trackerFilter.values.has(getTrackerHostname(t)));
+      }
+    }
+
+    if (tagFilter.values.size > 0) {
+      if (tagFilter.mode === 'include') {
+        items = items.filter((t) => t.tags.some((tag) => tagFilter.values.has(tag)));
+      } else {
+        items = items.filter((t) => !t.tags.some((tag) => tagFilter.values.has(tag)));
+      }
+    }
+
     if (search) {
       const q = search.toLowerCase();
       items = items.filter(
         (t) =>
           t.name.toLowerCase().includes(q) ||
           t.basePath.toLowerCase().includes(q) ||
-          t.trackerURIs.some((u) => u.toLowerCase().includes(q)),
+          t.trackerURIs.some((u) => u.toLowerCase().includes(q)) ||
+          t.tags.some((tag) => tag.toLowerCase().includes(q)),
       );
     }
+
     items = [...items].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -60,16 +107,19 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
           cmp = a.percentComplete - b.percentComplete;
           break;
         case 'tracker':
-          cmp = getTracker(a).localeCompare(getTracker(b));
+          cmp = getTrackerHostname(a).localeCompare(getTrackerHostname(b));
           break;
         case 'ratio':
           cmp = a.ratio - b.ratio;
+          break;
+        case 'tags':
+          cmp = a.tags.join(',').localeCompare(b.tags.join(','));
           break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return items;
-  }, [stoppedTorrents, search, sortField, sortDir, getTracker]);
+  }, [stoppedTorrents, search, sortField, sortDir, trackerFilter, tagFilter]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -83,6 +133,20 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
   const sortIndicator = (field: SortField) => {
     if (sortField !== field) return '';
     return sortDir === 'asc' ? ' ▲' : ' ▼';
+  };
+
+  const toggleFilterValue = (filter: FilterSelection, setFilter: (f: FilterSelection) => void, value: string) => {
+    const next = new Set(filter.values);
+    if (next.has(value)) {
+      next.delete(value);
+    } else {
+      next.add(value);
+    }
+    setFilter({...filter, values: next});
+  };
+
+  const toggleFilterMode = (filter: FilterSelection, setFilter: (f: FilterSelection) => void) => {
+    setFilter({...filter, mode: filter.mode === 'include' ? 'exclude' : 'include'});
   };
 
   const handleCheckHash = useCallback(
@@ -158,6 +222,7 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
   );
 
   const totalSize = filtered.reduce((acc, t) => acc + t.sizeBytes, 0);
+  const hasFilters = trackerFilter.values.size > 0 || tagFilter.values.size > 0;
 
   return (
     <div className="stocktake__tab-content">
@@ -169,7 +234,91 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {hasFilters && (
+          <button
+            type="button"
+            className="stocktake__btn-match"
+            onClick={() => {
+              setTrackerFilter({values: new Set(), mode: 'include'});
+              setTagFilter({values: new Set(), mode: 'include'});
+            }}
+          >
+            Clear filters
+          </button>
+        )}
       </div>
+
+      {allTrackers.length > 0 && (
+        <div className="stocktake__filter-row">
+          <button
+            type="button"
+            className={`stocktake__filter-mode ${
+              trackerFilter.mode === 'exclude' ? 'stocktake__filter-mode--exclude' : ''
+            }`}
+            onClick={() => toggleFilterMode(trackerFilter, setTrackerFilter)}
+            title={`Click to switch to ${trackerFilter.mode === 'include' ? 'exclude' : 'include'} mode`}
+          >
+            {trackerFilter.mode === 'include' ? 'Tracker ✓' : 'Tracker ✗'}
+          </button>
+          <div className="stocktake__filter-chips">
+            {allTrackers.map((tracker) => {
+              const active = trackerFilter.values.has(tracker);
+              return (
+                <button
+                  key={tracker}
+                  type="button"
+                  className={`stocktake__chip ${
+                    active
+                      ? trackerFilter.mode === 'exclude'
+                        ? 'stocktake__chip--exclude'
+                        : 'stocktake__chip--active'
+                      : ''
+                  }`}
+                  onClick={() => toggleFilterValue(trackerFilter, setTrackerFilter, tracker)}
+                >
+                  {tracker}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {allTags.length > 0 && (
+        <div className="stocktake__filter-row">
+          <button
+            type="button"
+            className={`stocktake__filter-mode ${
+              tagFilter.mode === 'exclude' ? 'stocktake__filter-mode--exclude' : ''
+            }`}
+            onClick={() => toggleFilterMode(tagFilter, setTagFilter)}
+            title={`Click to switch to ${tagFilter.mode === 'include' ? 'exclude' : 'include'} mode`}
+          >
+            {tagFilter.mode === 'include' ? 'Tags ✓' : 'Tags ✗'}
+          </button>
+          <div className="stocktake__filter-chips">
+            {allTags.map((tag) => {
+              const active = tagFilter.values.has(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`stocktake__chip ${
+                    active
+                      ? tagFilter.mode === 'exclude'
+                        ? 'stocktake__chip--exclude'
+                        : 'stocktake__chip--active'
+                      : ''
+                  }`}
+                  onClick={() => toggleFilterValue(tagFilter, setTagFilter, tag)}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="stocktake__count">
         {filtered.length} stopped torrent{filtered.length !== 1 ? 's' : ''} with data on disk ({formatSize(totalSize)})
       </div>
@@ -191,6 +340,9 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
               </th>
               <th onClick={() => handleSort('tracker')} className="stocktake__th-sortable">
                 Tracker{sortIndicator('tracker')}
+              </th>
+              <th onClick={() => handleSort('tags')} className="stocktake__th-sortable">
+                Tags{sortIndicator('tags')}
               </th>
               <th>Action</th>
             </tr>
@@ -216,7 +368,16 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
                     </span>
                   </td>
                   <td className="stocktake__table-right">{(t.ratio / 1000).toFixed(2)}</td>
-                  <td className="stocktake__td-tracker">{getTracker(t) || '—'}</td>
+                  <td className="stocktake__td-tracker">{getTrackerHostname(t) || '—'}</td>
+                  <td className="stocktake__td-tags">
+                    {t.tags.length > 0
+                      ? t.tags.map((tag) => (
+                          <span key={tag} className="stocktake__badge stocktake__badge--muted">
+                            {tag}
+                          </span>
+                        ))
+                      : '—'}
+                  </td>
                   <td>
                     {pct >= 100 ? (
                       <button
@@ -249,8 +410,8 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="stocktake__empty">
-                  No stopped torrents with data on disk.
+                <td colSpan={7} className="stocktake__empty">
+                  No stopped torrents match your filters.
                 </td>
               </tr>
             )}

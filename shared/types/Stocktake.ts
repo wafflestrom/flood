@@ -16,6 +16,7 @@ export interface StocktakeTorrentMatch {
   directory: string;
   status: string;
   trackerURIs: string[];
+  tags: string[];
   percentComplete: number;
   ratio: number;
   dateAdded: number;
