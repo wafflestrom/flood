@@ -313,6 +313,12 @@
   opacity: 0.6;
 }
 
+.stocktake__action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 // Disk usage cards
 .stocktake__disk-cards {
   display: flex;

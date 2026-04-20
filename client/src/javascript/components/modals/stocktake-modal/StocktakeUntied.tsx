@@ -416,39 +416,46 @@ const StocktakeUntied: FC<StocktakeUntiedProps> = ({
                         (() => {
                           const completed = completedPaths.get(f.path);
                           if (match.alreadyLoaded) {
-                            if (match.percentComplete >= 100) {
+                            const pct = Math.round(match.percentComplete);
+                            if (pct >= 100) {
                               return (
-                                <button
-                                  type="button"
-                                  className={completed === 'error' ? 'stocktake__btn-check' : 'stocktake__btn-add'}
-                                  disabled={isAdding || !!completed}
-                                  onClick={() => handleStartSeeding(match)}
-                                >
-                                  {isAdding
-                                    ? 'Starting…'
-                                    : completed === 'added'
-                                    ? 'Started'
-                                    : completed === 'error'
-                                    ? 'Failed'
-                                    : 'Start Seeding'}
-                                </button>
+                                <span className="stocktake__action-group">
+                                  <span className="stocktake__badge stocktake__badge--success">{pct}%</span>
+                                  <button
+                                    type="button"
+                                    className={completed === 'error' ? 'stocktake__btn-check' : 'stocktake__btn-add'}
+                                    disabled={isAdding || !!completed}
+                                    onClick={() => handleStartSeeding(match)}
+                                  >
+                                    {isAdding
+                                      ? 'Starting…'
+                                      : completed === 'added'
+                                      ? 'Started'
+                                      : completed === 'error'
+                                      ? 'Failed'
+                                      : 'Start'}
+                                  </button>
+                                </span>
                               );
                             }
                             return (
-                              <button
-                                type="button"
-                                className={completed === 'error' ? 'stocktake__btn-add' : 'stocktake__btn-check'}
-                                disabled={isAdding || !!completed}
-                                onClick={() => handleCheckHash(match)}
-                              >
-                                {isAdding
-                                  ? 'Checking…'
-                                  : completed === 'checked'
-                                  ? 'Checking'
-                                  : completed === 'error'
-                                  ? 'Failed'
-                                  : 'Check Hash'}
-                              </button>
+                              <span className="stocktake__action-group">
+                                <span className="stocktake__badge stocktake__badge--info">{pct}%</span>
+                                <button
+                                  type="button"
+                                  className={completed === 'error' ? 'stocktake__btn-add' : 'stocktake__btn-check'}
+                                  disabled={isAdding || !!completed}
+                                  onClick={() => handleCheckHash(match)}
+                                >
+                                  {isAdding
+                                    ? 'Checking…'
+                                    : completed === 'checked'
+                                    ? 'Checking'
+                                    : completed === 'error'
+                                    ? 'Failed'
+                                    : 'Check Hash'}
+                                </button>
+                              </span>
                             );
                           }
                           return (
