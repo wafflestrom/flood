@@ -10,6 +10,7 @@ import StocktakeAdded from './StocktakeAdded';
 import StocktakeDashboard from './StocktakeDashboard';
 import StocktakeDiskUsage from './StocktakeDiskUsage';
 import StocktakeOrphaned from './StocktakeOrphaned';
+import StocktakeStopped from './StocktakeStopped';
 import StocktakeTorrents from './StocktakeTorrents';
 import StocktakeUntied from './StocktakeUntied';
 
@@ -181,6 +182,7 @@ const StocktakeModal: FC = () => {
   if (!result) return null;
 
   const matchCountLabel = matchResult ? ` · ${matchResult.matches.length} matched` : '';
+  const stoppedWithFiles = result.allTorrents.filter((t) => t.status === 'stopped' && t.filesOnDisk);
 
   const tabs = {
     dashboard: {
@@ -212,6 +214,18 @@ const StocktakeModal: FC = () => {
       },
       label: `Orphaned (${result.summary.orphanedCount})`,
     },
+    ...(stoppedWithFiles.length > 0
+      ? {
+          stopped: {
+            content: StocktakeStopped,
+            props: {
+              stoppedTorrents: stoppedWithFiles,
+              onTorrentAdded: handleTorrentAdded,
+            },
+            label: `Stopped (${stoppedWithFiles.length})`,
+          },
+        }
+      : {}),
     torrents: {
       content: StocktakeTorrents,
       props: {
