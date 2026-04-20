@@ -115,6 +115,13 @@
   min-height: 0;
 }
 
+.stocktake__description {
+  font-size: 0.85em;
+  color: colors.$medium-grey;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
 .stocktake__controls {
   display: flex;
   gap: 10px;

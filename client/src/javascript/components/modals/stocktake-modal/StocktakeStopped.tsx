@@ -226,6 +226,11 @@ const StocktakeStopped: FC<StocktakeStoppedProps> = ({stoppedTorrents, onTorrent
 
   return (
     <div className="stocktake__tab-content">
+      <p className="stocktake__description">
+        These torrents are loaded in the client but stopped, and have matching files found on disk. The files may not be
+        correct — run <strong>Check Hash</strong> to verify data integrity before starting. Torrents at 100% have
+        already been verified and can be started directly.
+      </p>
       <div className="stocktake__controls">
         <input
           className="stocktake__search"
