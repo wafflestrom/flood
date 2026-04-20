@@ -169,10 +169,8 @@ class TorrentFilterStore {
         currentFilters.push(newFilter);
       }
     } else {
-      // Regular click: if excluded, switch to included; otherwise single-select
-      if (excludeFilters.includes(newFilter)) {
-        excludeFilters.splice(excludeFilters.indexOf(newFilter), 1);
-      }
+      // Regular click: single-select — clear both include and exclude, then select this item
+      excludeFilters.splice(0);
       currentFilters.splice(0, currentFilters.length, newFilter);
     }
   }
