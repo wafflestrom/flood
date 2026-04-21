@@ -1,6 +1,6 @@
 import classnames from 'classnames';
 import {computed} from 'mobx';
-import {CSSProperties, FC, KeyboardEvent, MouseEvent, TouchEvent, useRef, useState} from 'react';
+import {CSSProperties, FC, KeyboardEvent, MouseEvent, TouchEvent, useEffect, useRef, useState} from 'react';
 import {observer} from 'mobx-react-lite';
 import {useLongPress} from 'react-use';
 
@@ -53,6 +53,9 @@ const displayTorrentDetails = (hash: string) => UIStore.setActiveModal({id: 'tor
 const selectTorrent = (hash: string, event: KeyboardEvent | MouseEvent | TouchEvent) =>
   TorrentStore.setSelectedTorrents({hash, event});
 
+const FORCE_TOUCH_HIDE_CURSOR =
+  '* { cursor: none !important; -webkit-user-select: none !important; user-select: none !important; }';
+
 const onKeyPress = (hash: string, e: KeyboardEvent) => {
   if (e.key === ' ' || e.key === 'Enter' || e.key === 'ContextMenu') {
     e.preventDefault();
@@ -76,10 +79,56 @@ interface TorrentListRowProps {
 const TorrentListRow: FC<TorrentListRowProps> = observer(({hash, style}: TorrentListRowProps) => {
   const [rowLocation, setRowLocation] = useState<number>(0);
   const shouldDisplayTorrentDetails = useRef<boolean>(false);
+  const forceTouchActiveRef = useRef(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
   const isCondensed = SettingStore.floodSettings.torrentListViewSize === 'condensed';
   const isSelected = computed(() => TorrentStore.selectedTorrents.includes(hash)).get();
+
+  // macOS Force Touch: open torrent details on deep press, close on release.
+  // Document-level release listeners are used so the gesture end is caught even
+  // when the modal overlay covers the original row element.
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return undefined;
+
+    const handleForceWillBegin = (e: Event) => {
+      // Prevent the browser's default Force Touch actions (dictionary popup, etc.)
+      e.preventDefault();
+    };
+
+    const handleForceDown = () => {
+      if (forceTouchActiveRef.current) return;
+      forceTouchActiveRef.current = true;
+
+      UIStore.addGlobalStyle(FORCE_TOUCH_HIDE_CURSOR);
+      displayTorrentDetails(hash);
+
+      const endForceTouch = () => {
+        forceTouchActiveRef.current = false;
+        UIStore.removeGlobalStyle(FORCE_TOUCH_HIDE_CURSOR);
+
+        const modal = UIStore.activeModal;
+        if (modal?.id === 'torrent-details' && modal.hash === hash) {
+          UIStore.setActiveModal(null);
+        }
+
+        document.removeEventListener('webkitmouseforceup', endForceTouch);
+        document.removeEventListener('mouseup', endForceTouch);
+      };
+
+      document.addEventListener('webkitmouseforceup', endForceTouch);
+      document.addEventListener('mouseup', endForceTouch);
+    };
+
+    el.addEventListener('webkitmouseforcewillbegin', handleForceWillBegin);
+    el.addEventListener('webkitmouseforcedown', handleForceDown);
+
+    return () => {
+      el.removeEventListener('webkitmouseforcewillbegin', handleForceWillBegin);
+      el.removeEventListener('webkitmouseforcedown', handleForceDown);
+    };
+  }, [hash, isCondensed]);
 
   const {status, upRate, downRate} = TorrentStore.torrents?.[hash] || {};
   const torrentClasses = torrentStatusClasses(
