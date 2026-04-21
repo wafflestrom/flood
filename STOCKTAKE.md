@@ -178,13 +178,19 @@ The parallel `du` with a time budget is the dominant win. On warm caches all 76 
 ### SSH access
 
 ```bash
-# Key is stored in a vault protected by touch id - user may be slow to unlock so be patient and wait at least 120 seconds before timing out
 ssh reginald@reginald.local
 
 # Flood runs as user `flood`, install dir: /home/flood/flood/
 # Service: flood.service (systemd)
 # Flood is started with: --auth none --rtsocket /tmp/rtorrent.sock --host 127.0.0.1
 ```
+
+SSH **always** authenticates using the key loaded in the agent (id_ed25519). Never use password or keyboard-interactive authentication. The key is protected by Touch ID, so the agent may be locked.
+
+If SSH prompts for a password or keyboard-interactive auth (i.e. the agent is locked), **do not proceed**. Instead:
+
+1. Use the `ask_user` tool to notify the user that the SSH agent needs to be unlocked (Touch ID prompt required)
+2. Wait for the user to confirm they have unlocked it before retrying
 
 ### Authenticating to Flood
 
@@ -286,6 +292,8 @@ The `getDirectorySizes()` function dominates scan time. To benchmark alternative
    Parallel `du` is the best cold-cache approach (3.1× faster). `find|awk` is slightly faster warm but much worse cold. A 2 s global timeout caps the worst case regardless.
 
 ### Deploying changes
+
+**Always deploy immediately after a successful production build**, unless explicitly told not to.
 
 ```bash
 # Build locally
