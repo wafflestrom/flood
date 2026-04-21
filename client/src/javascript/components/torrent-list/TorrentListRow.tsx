@@ -103,10 +103,12 @@ const TorrentListRow: FC<TorrentListRowProps> = observer(({hash, style}: Torrent
 
       UIStore.addGlobalStyle(FORCE_TOUCH_HIDE_CURSOR);
       displayTorrentDetails(hash);
+      el.requestPointerLock();
 
       const endForceTouch = () => {
         forceTouchActiveRef.current = false;
         UIStore.removeGlobalStyle(FORCE_TOUCH_HIDE_CURSOR);
+        document.exitPointerLock();
 
         const modal = UIStore.activeModal;
         if (modal?.id === 'torrent-details' && modal.hash === hash) {

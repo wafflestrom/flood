@@ -77,7 +77,10 @@ function selectTorrents(options: SelectTorrentOptions): string[] {
       options.selectedTorrents.splice(hashPosition, 1);
     }
   } else {
-    // clicked torrent is only item in list.
+    const isSecondClick = (options.event as React.MouseEvent).detail >= 2;
+    if (!isSecondClick && options.selectedTorrents.includes(options.hash)) {
+      return [];
+    }
     return [options.hash];
   }
   return options.selectedTorrents;
