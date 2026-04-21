@@ -1,9 +1,5 @@
 This file provides guidance to AI coding agents when working with code in this repository.
 
-## Git Commits
-
-**Do NOT add `Co-authored-by` trailers to commit messages.** No co-author lines of any kind.
-
 ## Project Overview
 
 Flood is a modern web UI for various torrent clients (rTorrent, qBittorrent, Transmission, Deluge) with multi-user and multi-client support. Built with TypeScript, React, MobX, and Node.js/Fastify.
@@ -306,12 +302,6 @@ For reverse proxy setups:
 5. **Run `pnpm run build`** to verify production build
 6. **Run `pnpm test`** to ensure client adapters still work
 
-## Stocktake Feature
-
-Stocktake is a disk-vs-torrent cross-referencing tool. It scans directories and compares what's on disk with the torrent client's state, surfacing untied files and orphaned torrents. Full documentation is in [STOCKTAKE.md](./STOCKTAKE.md).
-
-Key entry points: `server/services/stocktakeService.ts` (scan logic), `server/routes/api/stocktake.ts` (API), `client/src/javascript/components/modals/stocktake-modal/` (UI). Configured via `--stocktakedirs` CLI flag or auto-derived from torrent base paths.
-
 ## Debugging Tips
 
 ### When Things Go Wrong
@@ -529,43 +519,6 @@ class Store {
    - Use styled-system utilities
    - Run `panda codegen` after config changes
    - Located in `client/src/javascript/styled-system/`
-
-## Deployment to Test Server (reginald)
-
-**Always deploy automatically after committing unless explicitly told not to.**
-
-After building (`pnpm run build`), deploy to the test server for user testing:
-
-```bash
-# 1. rsync built dist/ plus package files to staging area (SSH user: reginald)
-#    Note: dist/ contents are flattened alongside package.json in the staging dir
-rsync -az --delete dist/ package.json pnpm-lock.yaml \
-  reginald@reginald.local:/tmp/flood-deploy/
-
-# 2. SSH in: copy dist contents (excluding package files) into flood's dist/,
-#    copy package files to flood root, fix ownership, restart service
-ssh reginald@reginald.local "\
-  sudo rsync -a --delete --exclude=package.json --exclude=pnpm-lock.yaml \
-    /tmp/flood-deploy/ /home/flood/flood/dist/ && \
-  sudo cp /tmp/flood-deploy/package.json /tmp/flood-deploy/pnpm-lock.yaml \
-    /home/flood/flood/ && \
-  sudo chown -R flood:flood /home/flood/flood/ && \
-  sudo systemctl restart flood && \
-  sleep 2 && \
-  sudo systemctl status flood --no-pager && \
-  rm -rf /tmp/flood-deploy"
-```
-
-**Key details:**
-
-- SSH user: `reginald` (has sudo, key-based auth via id_ed25519)
-- Flood runs as user `flood`, install dir: `/home/flood/flood/`
-- Flood is a systemd service: `flood.service`
-- Use `/tmp/flood-deploy/` as staging area (reginald user can write there)
-- Must `sudo` to write to `/home/flood/flood/` and restart the service
-- Do NOT create or install new SSH keys — the existing key is already authorized
-- Do NOT use git push — rsync the built artifacts directly
-- Verify the service is active after restart before reporting success
 
 ## Final Reminders
 
