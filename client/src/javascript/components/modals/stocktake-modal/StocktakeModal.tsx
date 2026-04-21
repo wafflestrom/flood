@@ -1,7 +1,10 @@
 import axios from 'axios';
+import {computed} from 'mobx';
+import {observer} from 'mobx-react-lite';
 import {FC, useCallback, useEffect, useState} from 'react';
 
 import ConfigStore from '@client/stores/ConfigStore';
+import TorrentStore from '@client/stores/TorrentStore';
 import type {StocktakeAddedTorrent, StocktakeMatchResult, StocktakeResult} from '@shared/types/Stocktake';
 
 import Modal from '../Modal';
@@ -17,7 +20,7 @@ import StocktakeUntied from './StocktakeUntied';
 
 const {baseURI} = ConfigStore;
 
-const StocktakeModal: FC = () => {
+const StocktakeModal: FC = observer(() => {
   const [result, setResult] = useState<StocktakeResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +93,36 @@ const StocktakeModal: FC = () => {
   useEffect(() => {
     fetchCached();
   }, [fetchCached]);
+
+  const torrentList = computed(() => Object.values(TorrentStore.torrents)).get();
+  const hasTorrents = torrentList.length > 0;
+  const hasBasePathSupport = torrentList.some((t) => t.basePath != null);
+
+  if (hasTorrents && !hasBasePathSupport) {
+    return (
+      <Modal
+        key="stocktake-unsupported"
+        heading="Stocktake"
+        size="large"
+        actions={[
+          {
+            clickHandler: null,
+            content: 'Close',
+            triggerDismiss: true,
+            type: 'tertiary',
+          },
+        ]}
+        content={
+          <div className="stocktake__empty-state">
+            <p>
+              Stocktake requires rTorrent. Your current torrent client does not provide the file path information needed
+              to cross-reference torrents with disk content.
+            </p>
+          </div>
+        }
+      />
+    );
+  }
 
   if (!result && !isLoading && !error) {
     return (
@@ -296,6 +329,6 @@ const StocktakeModal: FC = () => {
       ]}
     />
   );
-};
+});
 
 export default StocktakeModal;
