@@ -5,6 +5,7 @@ import {useLingui} from '@lingui/react';
 import {useKeyPressEvent} from 'react-use';
 
 import {ContextMenu} from '@client/ui';
+import {Checkmark} from '@client/ui/icons';
 import UIStore from '@client/stores/UIStore';
 
 import type {ActiveContextMenu} from '@client/stores/UIStore';
@@ -67,6 +68,39 @@ const ContextMenuMountPoint: FC<ContextMenuMountPointProps> = observer(({id}: Co
               </span>
             );
             break;
+          case 'toggle':
+            menuItemClasses = classnames('menu__item', {
+              'is-selectable': !item.isDisabled,
+            });
+            menuItemContent = (
+              <span>
+                <span
+                  className={classnames('menu__item__label--primary', {
+                    'is-disabled': item.isDisabled,
+                  })}
+                >
+                  <span className="toggle-input checkbox" style={{display: 'inline', marginRight: '6px'}}>
+                    <div className="toggle-input__indicator">
+                      <div className="toggle-input__indicator__icon" style={{opacity: item.checked ? '1' : undefined}}>
+                        <Checkmark />
+                      </div>
+                    </div>
+                  </span>
+                  <span className="menu__item__label">{i18n._(item.label)}</span>
+                </span>
+              </span>
+            );
+            break;
+          case 'link':
+            menuItemClasses = classnames('menu__item', 'is-selectable');
+            menuItemContent = (
+              <span>
+                <span className="menu__item__label--primary">
+                  <span className="menu__item__label">{i18n._(item.label)}</span>
+                </span>
+              </span>
+            );
+            break;
           case 'separator':
           default:
             menuItemClasses = classnames('menu__item', {
@@ -76,23 +110,51 @@ const ContextMenuMountPoint: FC<ContextMenuMountPointProps> = observer(({id}: Co
         }
 
         return (
-          <li className={menuItemClasses} key={item.type === 'action' ? item.action : `sep-${index}`}>
+          <li
+            className={menuItemClasses}
+            key={
+              item.type === 'action'
+                ? item.action
+                : item.type === 'toggle'
+                ? `toggle-${item.id}`
+                : `${item.type}-${index}`
+            }
+          >
             <button
               type="button"
-              disabled={item.type !== 'action' || !item.clickHandler}
+              disabled={
+                item.type === 'separator' ||
+                (item.type === 'action' && !item.clickHandler) ||
+                (item.type === 'toggle' && item.isDisabled === true)
+              }
               onClick={(event) => {
-                if (item.type !== 'separator') {
-                  if (item.dismissMenu === false) {
-                    event.nativeEvent.stopImmediatePropagation();
-                  }
+                if (item.type === 'separator') {
+                  return false;
+                }
 
-                  if (item.clickHandler) {
-                    item.clickHandler(event);
+                if (item.type === 'toggle') {
+                  if (!item.isDisabled) {
+                    item.clickHandler();
                   }
+                  // keep menu open so the user can toggle multiple columns
+                  return false;
+                }
 
-                  if (item.dismissMenu !== false) {
-                    UIStore.dismissContextMenu(id);
-                  }
+                if (item.type === 'link') {
+                  item.clickHandler(event);
+                  UIStore.dismissContextMenu(id);
+                  return false;
+                }
+
+                // action
+                if (item.dismissMenu === false) {
+                  event.nativeEvent.stopImmediatePropagation();
+                }
+                if (item.clickHandler) {
+                  item.clickHandler(event);
+                }
+                if (item.dismissMenu !== false) {
+                  UIStore.dismissContextMenu(id);
                 }
 
                 return false;

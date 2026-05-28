@@ -43,7 +43,10 @@ const displayContextMenu = (hash: string, event: KeyboardEvent | MouseEvent | To
         return true;
       }
 
-      return torrentContextMenuActions.some((action) => action.id === item.action && action.visible === true);
+      return (
+        item.type === 'action' &&
+        torrentContextMenuActions.some((action) => action.id === item.action && action.visible === true)
+      );
     }),
   });
 };
