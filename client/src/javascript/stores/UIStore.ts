@@ -14,8 +14,19 @@ export type ContextMenuItem =
       clickHandler(event: MouseEvent): void;
       dismissMenu?: boolean;
     }
+  | {type: 'separator'}
   | {
-      type: 'separator';
+      type: 'toggle';
+      id: string;
+      label: string;
+      checked: boolean;
+      isDisabled?: boolean;
+      clickHandler(): void;
+    }
+  | {
+      type: 'link';
+      label: string;
+      clickHandler(event: MouseEvent): void;
     };
 
 export interface ActiveContextMenu {
