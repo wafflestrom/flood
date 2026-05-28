@@ -183,6 +183,7 @@ const TorrentList: FC = observer(() => {
     <TorrentListDropzone>
       <div className="torrent__list__wrapper" role="table">
         <ContextMenuMountPoint id="torrent-list-item" />
+        <ContextMenuMountPoint id="column-list" />
         {torrentListHeading}
         {content}
       </div>
