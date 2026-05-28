@@ -97,11 +97,11 @@ $table--heading--resize--indicator--width: 1px;
       @include themes.theme('background', 'table--heading--background');
       @include themes.theme('color', 'table--heading--color');
       border: none;
-      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
       box-sizing: border-box;
       cursor: grabbing;
+      filter: brightness(1.15);
+      font-size: 12px;
       height: 24px;
-      opacity: 0.9;
     }
 
     &__handle {
