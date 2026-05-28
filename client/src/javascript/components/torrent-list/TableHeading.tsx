@@ -19,8 +19,10 @@ import {restrictToHorizontalAxis} from '@dnd-kit/modifiers';
 
 import {css} from '@client/styled-system/css';
 import TorrentListColumns, {TorrentListColumn} from '../../constants/TorrentListColumns';
+import SettingActions from '../../actions/SettingActions';
 import SettingStore from '../../stores/SettingStore';
 import UIStore from '../../stores/UIStore';
+import type {ContextMenuItem} from '../../stores/UIStore';
 
 import type {FloodSettings} from '@shared/types/FloodSettings';
 
@@ -153,6 +155,50 @@ const TableHeading = observer(
       const didDrag = useRef<boolean>(false);
 
       const {i18n} = useLingui();
+
+      const handleContextMenu = useCallback((event: React.MouseEvent) => {
+        event.preventDefault();
+
+        const {torrentListColumns} = SettingStore.floodSettings;
+
+        // Build full column list: saved order first, then any columns not yet in settings.
+        const allColumns: Array<{id: TorrentListColumn; visible: boolean}> = [
+          ...torrentListColumns,
+          ...Object.keys(TorrentListColumns)
+            .filter((key) => torrentListColumns.every((col) => col.id !== key))
+            .map((key) => ({id: key as TorrentListColumn, visible: false})),
+        ];
+
+        const items: Array<ContextMenuItem> = [
+          ...allColumns.map(
+            ({id, visible}): ContextMenuItem => ({
+              type: 'toggle',
+              id,
+              label: TorrentListColumns[id],
+              checked: visible,
+              clickHandler: () => {
+                const current = SettingStore.floodSettings.torrentListColumns;
+                const updated = current.some((col) => col.id === id)
+                  ? current.map((col) => (col.id === id ? {...col, visible: !col.visible} : col))
+                  : [...current, {id, visible: true}];
+                SettingActions.saveSetting('torrentListColumns', updated as FloodSettings['torrentListColumns']);
+              },
+            }),
+          ),
+          {type: 'separator'},
+          {
+            type: 'link',
+            label: 'column.context.menu.manage',
+            clickHandler: () => UIStore.setActiveModal({id: 'settings'}),
+          },
+        ];
+
+        UIStore.setActiveContextMenu({
+          id: 'column-list',
+          clickPosition: {x: event.clientX, y: event.clientY},
+          items,
+        });
+      }, []);
 
       const sensors = useSensors(
         useSensor(MouseSensor, {activationConstraint: {distance: 10}}),
@@ -288,7 +334,12 @@ const TableHeading = observer(
           onDragCancel={handleDragCancel}
           autoScroll={false}
         >
-          <div className="table__row table__row--heading" role="row" ref={tableHeading}>
+          <div
+            className="table__row table__row--heading"
+            role="row"
+            ref={tableHeading}
+            onContextMenu={handleContextMenu}
+          >
             {SettingStore.floodSettings.torrentListColumns.reduce((accumulator: Array<ReactNode>, {id, visible}) => {
               if (!visible) {
                 return accumulator;
