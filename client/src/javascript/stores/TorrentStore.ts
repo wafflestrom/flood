@@ -101,6 +101,10 @@ class TorrentStore {
     this.selectedTorrents = this.filteredTorrents.map((v) => v.hash);
   }
 
+  deselectAllTorrents() {
+    this.selectedTorrents = [];
+  }
+
   handleTorrentListDiffChange(torrentListDiffs: Operation[]) {
     applyPatch(this.torrents, torrentListDiffs);
   }

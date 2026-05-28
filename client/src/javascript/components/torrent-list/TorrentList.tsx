@@ -181,7 +181,16 @@ const TorrentList: FC = observer(() => {
 
   return (
     <TorrentListDropzone>
-      <div className="torrent__list__wrapper" role="table">
+      <div
+        className="torrent__list__wrapper"
+        role="table"
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('[role="row"]') == null && listHeaderRef.current?.contains(target) !== true) {
+            TorrentStore.deselectAllTorrents();
+          }
+        }}
+      >
         <ContextMenuMountPoint id="torrent-list-item" />
         <ContextMenuMountPoint id="column-list" />
         {torrentListHeading}
