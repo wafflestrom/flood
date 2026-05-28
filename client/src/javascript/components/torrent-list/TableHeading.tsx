@@ -171,7 +171,7 @@ const TableHeading = observer(
 
         const items: Array<ContextMenuItem> = [
           ...allColumns.map(
-            ({id, visible}): ContextMenuItem => ({
+            ({id}): ContextMenuItem => ({
               type: 'toggle',
               id,
               label: TorrentListColumns[id],
@@ -185,12 +185,6 @@ const TableHeading = observer(
               },
             }),
           ),
-          {type: 'separator'},
-          {
-            type: 'link',
-            label: 'column.context.menu.manage',
-            clickHandler: () => UIStore.setActiveModal({id: 'settings'}),
-          },
         ];
 
         UIStore.setActiveContextMenu({
