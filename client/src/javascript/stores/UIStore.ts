@@ -19,7 +19,7 @@ export type ContextMenuItem =
       type: 'toggle';
       id: string;
       label: string;
-      checked: boolean;
+      checked: () => boolean;
       isDisabled?: boolean;
       clickHandler(): void;
     }

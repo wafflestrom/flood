@@ -175,7 +175,7 @@ const TableHeading = observer(
               type: 'toggle',
               id,
               label: TorrentListColumns[id],
-              checked: visible,
+              checked: () => SettingStore.floodSettings.torrentListColumns.find((c) => c.id === id)?.visible ?? false,
               clickHandler: () => {
                 const current = SettingStore.floodSettings.torrentListColumns;
                 const updated = current.some((col) => col.id === id)

@@ -80,7 +80,7 @@ const ContextMenuMountPoint: FC<ContextMenuMountPointProps> = observer(({id}: Co
                   })}
                   style={{display: 'flex', alignItems: 'center', gap: '6px'}}
                 >
-                  <span style={{display: 'inline-flex', width: '12px', flexShrink: 0, opacity: item.checked ? 1 : 0}}>
+                  <span style={{display: 'inline-flex', width: '12px', flexShrink: 0, opacity: item.checked() ? 1 : 0}}>
                     <Checkmark />
                   </span>
                   <span className="menu__item__label">{i18n._(item.label)}</span>
