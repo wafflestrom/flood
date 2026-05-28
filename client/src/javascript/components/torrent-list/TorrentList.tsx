@@ -147,6 +147,9 @@ const TorrentList: FC = observer(() => {
               [column]: width,
             });
           }}
+          onReorder={(columns) => {
+            SettingActions.saveSetting('torrentListColumns', columns);
+          }}
           ref={listHeaderRef}
         />
       );

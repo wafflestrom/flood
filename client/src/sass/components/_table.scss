@@ -1,5 +1,6 @@
 @use 'sass:math';
 
+@use '../tools/colors';
 @use '../tools/themes';
 
 $table--heading--resize--handle--width: 9px;
@@ -88,6 +89,21 @@ $table--heading--resize--indicator--width: 1px;
       }
     }
 
+    &--is-dragging {
+      opacity: 0.35;
+    }
+
+    &--drag-overlay {
+      @include themes.theme('background', 'table--heading--background');
+      @include themes.theme('color', 'table--heading--color');
+      border: none;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+      box-sizing: border-box;
+      cursor: grabbing;
+      height: 24px;
+      opacity: 0.9;
+    }
+
     &__handle {
       bottom: 0;
       cursor: col-resize;
@@ -135,6 +151,21 @@ $table--heading--resize--indicator--width: 1px;
       transition: opacity 0.125s;
       will-change: opacity, transform;
       width: $table--heading--resize--indicator--width;
+    }
+
+    &__drop-indicator {
+      background: colors.$blue;
+      bottom: 0;
+      box-shadow: 0 0 4px rgba(colors.$blue, 0.7);
+      left: 0;
+      opacity: 0;
+      pointer-events: none;
+      position: fixed;
+      top: 0;
+      transition: opacity 0.125s;
+      will-change: opacity, transform;
+      width: 2px;
+      z-index: 3;
     }
 
     &__column-fill {
