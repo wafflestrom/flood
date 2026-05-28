@@ -76,17 +76,23 @@ const ContextMenuMountPoint: FC<ContextMenuMountPointProps> = observer(({id}: Co
               <span>
                 <span
                   className={classnames('menu__item__label--primary', {
+                    'has-action': true,
                     'is-disabled': item.isDisabled,
                   })}
                 >
-                  <span className="toggle-input checkbox" style={{display: 'inline', marginRight: '6px'}}>
-                    <div className="toggle-input__indicator">
-                      <div className="toggle-input__indicator__icon" style={{opacity: item.checked ? '1' : undefined}}>
-                        <Checkmark />
-                      </div>
-                    </div>
-                  </span>
                   <span className="menu__item__label">{i18n._(item.label)}</span>
+                  <span className="menu__item__label__action">
+                    <span className="toggle-input checkbox" style={{display: 'inline'}}>
+                      <div className="toggle-input__indicator">
+                        <div
+                          className="toggle-input__indicator__icon"
+                          style={{opacity: item.checked ? '1' : undefined}}
+                        >
+                          <Checkmark />
+                        </div>
+                      </div>
+                    </span>
+                  </span>
                 </span>
               </span>
             );
