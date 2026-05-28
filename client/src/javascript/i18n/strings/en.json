@@ -38,6 +38,7 @@
   "button.save": "Save Settings",
   "button.save.feed": "Save",
   "button.yes": "Yes",
+  "column.context.menu.manage": "Manage Columns…",
   "connection-interruption.action.selection.config": "Update client connection settings",
   "connection-interruption.action.selection.retry": "Retry with current client connection settings",
   "connection-interruption.heading": "Cannot connect to the client",
