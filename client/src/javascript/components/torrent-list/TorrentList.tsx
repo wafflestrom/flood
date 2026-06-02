@@ -186,7 +186,11 @@ const TorrentList: FC = observer(() => {
         role="table"
         onClick={(e) => {
           const target = e.target as HTMLElement;
-          if (target.closest('[role="row"]') == null && listHeaderRef.current?.contains(target) !== true) {
+          if (
+            target.closest('[role="row"]') == null &&
+            target.closest('.context-menu') == null &&
+            listHeaderRef.current?.contains(target) !== true
+          ) {
             TorrentStore.deselectAllTorrents();
           }
         }}

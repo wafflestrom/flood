@@ -11,6 +11,10 @@ import Modal from '../Modal';
 import ModalActions from '../ModalActions';
 
 const getSuggestedPath = (sources: Array<string>): string | undefined => {
+  if (sources.length === 0) {
+    return undefined;
+  }
+
   let commonPath = '';
 
   for (let i = 0; i < sources[0].length; i += 1) {
@@ -63,7 +67,9 @@ const MoveTorrents: FC = () => {
               id="destination"
               selectable="directories"
               suggested={getSuggestedPath(
-                TorrentStore.selectedTorrents.map((hash: string) => TorrentStore.torrents[hash].directory),
+                TorrentStore.selectedTorrents
+                  .map((hash: string) => TorrentStore.torrents[hash]?.directory)
+                  .filter((dir): dir is string => dir != null),
               )}
               showBasePathToggle
             />
