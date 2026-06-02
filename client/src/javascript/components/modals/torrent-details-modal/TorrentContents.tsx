@@ -1,7 +1,8 @@
 import classnames from 'classnames';
 import {observer} from 'mobx-react-lite';
-import {FC, useEffect, useState} from 'react';
+import {FC, useEffect, useRef, useState} from 'react';
 import {Trans, useLingui} from '@lingui/react';
+import {useInterval} from 'react-use';
 
 import {Button, Checkbox, Form, FormRow, FormRowItem, Select, SelectItem} from '@client/ui';
 import ConfigStore from '@client/stores/ConfigStore';
@@ -21,16 +22,52 @@ const TorrentContents: FC = observer(() => {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const {i18n} = useLingui();
 
-  useEffect(() => {
-    if (UIStore.activeModal?.id === 'torrent-details') {
-      TorrentActions.fetchTorrentContents(UIStore.activeModal?.hash).then((fetchedContents) => {
+  const isFetching = useRef(false);
+  const wasActive = useRef(false);
+
+  const fetchContents = () => {
+    if (UIStore.activeModal?.id !== 'torrent-details' || isFetching.current) {
+      return;
+    }
+
+    isFetching.current = true;
+    TorrentActions.fetchTorrentContents(UIStore.activeModal.hash)
+      .then((fetchedContents) => {
         if (fetchedContents != null) {
           setContents(fetchedContents);
-          setItemsTree(selectionTree.getSelectionTree(fetchedContents));
+          // Merge fresh progress into the existing tree to preserve selection; build it on the
+          // first fetch when there is no tree yet.
+          setItemsTree((prevTree) =>
+            Object.keys(prevTree).length > 0
+              ? selectionTree.mergeContents(prevTree, fetchedContents)
+              : selectionTree.getSelectionTree(fetchedContents),
+          );
         }
+      })
+      .finally(() => {
+        isFetching.current = false;
       });
+  };
+
+  // The torrent list is already streamed in realtime, so derive activity from it rather than
+  // polling unconditionally. Per-file progress only changes while downloading or hash-checking.
+  const torrent =
+    UIStore.activeModal?.id === 'torrent-details' ? TorrentStore.torrents?.[UIStore.activeModal.hash] : undefined;
+  const isActive = torrent != null && (torrent.status.includes('downloading') || torrent.status.includes('checking'));
+
+  useEffect(() => fetchContents(), []);
+
+  // Poll while active; passing null pauses the timer so static torrents do no extra work.
+  useInterval(() => fetchContents(), isActive ? ConfigStore.pollInterval : null);
+
+  // When the torrent stops being active (e.g. a download finishes), the timer pauses; fetch once
+  // more so the final progress lands instead of being frozen just short of 100%.
+  useEffect(() => {
+    if (wasActive.current && !isActive) {
+      fetchContents();
     }
-  }, []);
+    wasActive.current = isActive;
+  }, [isActive]);
 
   if (UIStore.activeModal?.id !== 'torrent-details') {
     return null;

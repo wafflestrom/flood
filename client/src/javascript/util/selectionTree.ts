@@ -155,11 +155,47 @@ const getSelectionTree = (contents: Array<TorrentContent>, isSelected = false): 
   return tree;
 };
 
+// Updates an existing selection tree in place with fresh per-file progress without rebuilding
+// it, so that selection state (isSelected) and structure are preserved. Only percentComplete
+// is merged — a torrent's file membership is fixed for its lifetime, so nodes are never added
+// or removed, and priority is intentionally left untouched to avoid reverting a value the user
+// just changed.
+const mergeContents = (
+  tree: TorrentContentSelectionTree,
+  contents: Array<TorrentContent>,
+): TorrentContentSelectionTree => {
+  const byIndex = new Map(contents.map((content) => [content.index, content]));
+
+  const walk = (node: TorrentContentSelectionTree): TorrentContentSelectionTree => {
+    const next: TorrentContentSelectionTree = {...node};
+
+    if (node.files != null) {
+      next.files = {};
+      Object.entries(node.files).forEach(([name, file]) => {
+        const fresh = byIndex.get(file.index);
+        next.files![name] = fresh != null ? {...file, percentComplete: fresh.percentComplete} : file;
+      });
+    }
+
+    if (node.directories != null) {
+      next.directories = {};
+      Object.entries(node.directories).forEach(([name, directory]) => {
+        next.directories![name] = walk(directory);
+      });
+    }
+
+    return next;
+  };
+
+  return walk(tree);
+};
+
 const selectionTree = {
   selectAll,
   applySelection,
   getSelectedItems,
   getSelectionTree,
+  mergeContents,
 };
 
 export default selectionTree;
