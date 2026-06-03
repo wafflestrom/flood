@@ -55,10 +55,16 @@ const TorrentContents: FC = observer(() => {
     UIStore.activeModal?.id === 'torrent-details' ? TorrentStore.torrents?.[UIStore.activeModal.hash] : undefined;
   const isActive = torrent != null && (torrent.status.includes('downloading') || torrent.status.includes('checking'));
 
-  useEffect(() => fetchContents(), []);
+  // Refetch in lockstep with the SSE-streamed overall progress so the file rows and the header's
+  // progress bar move together. This effect also fires on mount with the initial value, so it
+  // doubles as the first fetch. (Component is a MobX observer, so percentComplete re-evaluates
+  // whenever the activity stream patches it.)
+  useEffect(() => fetchContents(), [torrent?.percentComplete]);
 
-  // Poll while active; passing null pauses the timer so static torrents do no extra work.
-  useInterval(() => fetchContents(), isActive ? ConfigStore.pollInterval : null);
+  // Slow fallback only: insurance for the rare case where per-file progress shifts without the
+  // aggregate moving, or a dropped SSE diff. Kept well above the SSE cadence so it does not
+  // double-fetch with the effect above; the isFetching guard de-dupes any overlap regardless.
+  useInterval(() => fetchContents(), isActive ? ConfigStore.pollInterval * 4 : null);
 
   // When the torrent stops being active (e.g. a download finishes), the timer pauses; fetch once
   // more so the final progress lands instead of being frozen just short of 100%.
